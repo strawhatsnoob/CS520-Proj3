@@ -49,6 +49,9 @@ typedef struct CPU_Stage
     int simulator_flag;
     int btb_index;
     int is_btb_hit;
+    int pd;
+    int ps1;
+    int ps2;
 } CPU_Stage;
 
 typedef struct BTB {
@@ -59,6 +62,12 @@ typedef struct BTB {
     int is_used;
     int index;
 }BTB;
+
+typedef struct Register_Rename {
+    int allocated;
+    int valid_bit;
+    int data;
+}Register_Rename;
 
 /* Model of APEX CPU */
 typedef struct APEX_CPU
@@ -81,6 +90,9 @@ typedef struct APEX_CPU
     int counter;
     int simulator_flag;
     int index;
+    int rename_table[41];
+    int physical_queue[25];
+    int physical_queue_length;
 
     /* Pipeline stages */
     CPU_Stage fetch;
@@ -89,6 +101,8 @@ typedef struct APEX_CPU
     CPU_Stage memory;
     CPU_Stage writeback;
     BTB branch_target_buffer[4];
+    Register_Rename physical_register[25];
+    Register_Rename condition_code_register[16];
 } APEX_CPU;
 
 

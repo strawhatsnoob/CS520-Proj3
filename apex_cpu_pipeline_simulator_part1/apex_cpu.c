@@ -277,6 +277,65 @@ static void remove_from_btb(APEX_CPU *cpu) {
     }
 }
 
+static void rename_rd(APEX_CPU *cpu) {
+    int length = cpu->physical_queue_length;
+    for (int i = 0; i < length; i++) {
+        if (cpu->rename_table[cpu->physical_queue[i]] == -1) {
+            cpu->rename_table[cpu->physical_queue[i]] = cpu->decode.rd;
+            cpu->physical_register[cpu->physical_queue[i]].allocated = 1;
+            cpu->physical_register[cpu->physical_queue[i]].valid_bit = 0;
+            cpu->physical_register[cpu->physical_queue[i]].data = 0;
+            cpu->decode.pd = cpu->physical_queue[i];
+        }
+    }
+}
+
+static void rename_rs1(APEX_CPU *cpu) {
+    int length = cpu->physical_queue_length;
+    int rs1_flag = 0;
+    for(int i = 0; i < length; i++) {
+      if (cpu->rename_table[cpu->physical_queue[i]] == cpu->decode.rs1) {
+        rs1_flag = 1;
+        cpu->decode.ps1 = cpu->physical_queue[i];
+        break;
+      }
+    }
+    if (rs1_flag == 0) {
+      for (int i = 0; i < length; i++) {
+        if (cpu->rename_table[cpu->physical_queue[i]] == -1) {
+          cpu->rename_table[cpu->physical_queue[i]] = cpu->decode.rs1;
+          cpu->physical_register[cpu->physical_queue[i]].allocated = 1;
+          cpu->physical_register[cpu->physical_queue[i]].valid_bit = 0;
+          cpu->physical_register[cpu->physical_queue[i]].data = 0;
+          cpu->decode.ps1 = cpu->physical_queue[i];
+        }
+      }
+    }
+}
+
+static void rename_rs2(APEX_CPU *cpu) {
+    int length = cpu->physical_queue_length;
+    int rs2_flag = 0;
+    for(int i = 0; i < length; i++) {
+      if (cpu->rename_table[cpu->physical_queue[i]] == cpu->decode.rs2) {
+        rs2_flag = 1;
+        cpu->decode.ps2 = cpu->physical_queue[i];
+        break;
+      }
+    }
+    if (rs2_flag == 0) {
+      for (int i = 0; i < length; i++) {
+        if (cpu->rename_table[cpu->physical_queue[i]] == -1) {
+          cpu->rename_table[cpu->physical_queue[i]] = cpu->decode.rs2;
+          cpu->physical_register[cpu->physical_queue[i]].allocated = 1;
+          cpu->physical_register[cpu->physical_queue[i]].valid_bit = 0;
+          cpu->physical_register[cpu->physical_queue[i]].data = 0;
+          cpu->decode.ps2 = cpu->physical_queue[i];
+        }
+      }
+    }
+}
+
 /*
  * Decode Stage of APEX Pipeline
  *
@@ -300,6 +359,9 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_MUL:
             case OPCODE_DIV:
             {
+                rename_rd(cpu);
+                rename_rs1(cpu);
+                rename_rs2(cpu);
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 cpu->scoreBoarding[cpu->decode.rd] = 1;
@@ -314,6 +376,8 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_LOADP:
             case OPCODE_JALR:
             {
+                rename_rd(cpu);
+                rename_rs1(cpu);
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->scoreBoarding[cpu->decode.rd] = 1;
                 cpu->scoreBoarding[cpu->decode.rs1] = 1;
@@ -323,6 +387,7 @@ APEX_decode(APEX_CPU *cpu)
 
             case OPCODE_MOVC:
             {
+                rename_rd(cpu);
                 /* MOVC doesn't have register operands */
                 cpu->scoreBoarding[cpu->decode.rd] = 1;
                 break;
@@ -336,6 +401,8 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_STORE:
             case OPCODE_STOREP:
             {
+                rename_rs1(cpu);
+                rename_rs2(cpu);
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 cpu->scoreBoarding[cpu->decode.rs1] = 1;
@@ -345,6 +412,8 @@ APEX_decode(APEX_CPU *cpu)
 
             case OPCODE_CMP:
             {
+                rename_rs1(cpu);
+                rename_rs2(cpu);
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
                 cpu->scoreBoarding[cpu->decode.rs1] = 1;
@@ -355,6 +424,7 @@ APEX_decode(APEX_CPU *cpu)
             case OPCODE_CML:
             case OPCODE_JUMP:
             {
+                rename_rs1(cpu);
                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 cpu->scoreBoarding[cpu->decode.rs1] = 1;
                 break;
@@ -1193,6 +1263,18 @@ APEX_cpu_init(const char *filename)
         cpu->branch_target_buffer[i].pc_address = 0;
         cpu->branch_target_buffer[i].allocated = 0;
     }
+
+    int length = sizeof(cpu->rename_table) / sizeof(cpu->rename_table[0]);
+    for(int i = 0; i < length; i++) {
+        cpu->rename_table[i] = -1;
+    }
+
+    int physical_queue_length = sizeof(cpu->physical_queue) / sizeof(cpu->physical_queue[0]);
+    for(int i = 0; i <physical_queue_length; i++) {
+        cpu->physical_queue[i] = i;
+    }
+    cpu->physical_queue_length = physical_queue_length;
+
     cpu->branch_target_buffer->branch_prediction = 00;
     cpu->counter = 0;
     cpu->index = 0;
