@@ -50,6 +50,7 @@ typedef struct CPU_Stage
     int data_forward;
     int btb_index;
     int is_btb_hit;
+
 } CPU_Stage;
 
 typedef struct BTB {
@@ -91,10 +92,30 @@ typedef struct APEX_CPU
     CPU_Stage memory;
     CPU_Stage writeback;
     BTB branch_target_buffer[4];
+
+    // Branch Instruction Queue (BQ)
+    CPU_Stage bq[4];
+    int bq_size;
+    int bq_head;
+    int bq_tail;
+
+    // Instruction Queue (IQ)
+    CPU_Stage iq[16];
+    int iq_size;
+    int iq_head;
+    int iq_tail;
+
+    // Checkpointing for speculative execution
+    int checkpointed;
+    int checkpointed_free_list[REG_FILE_SIZE];
+    int checkpointed_rename_table[REG_FILE_SIZE];
 } APEX_CPU;
 
 APEX_Instruction *create_code_memory(const char *filename, int *size);
 APEX_CPU *APEX_cpu_init(const char *filename);
 void APEX_cpu_run(APEX_CPU *cpu);
 void APEX_cpu_stop(APEX_CPU *cpu);
+
+void APEX_cpu_issue_instructions(APEX_CPU *cpu);
+void APEX_cpu_dispatch_instructions(APEX_CPU *cpu);
 #endif
