@@ -35,8 +35,13 @@
         "args": [],
         "stopAtEntry": false,
         "externalConsole": false,
+<<<<<<< HEAD
         "cwd": "/home/kgunase1/CS520-Proj3/apex_cpu_pipeline_simulator/",
         "program": "/home/kgunase1/CS520-Proj3/apex_cpu_pipeline_simulator/",
+=======
+        "cwd": "/home/kgunase1/CS520/Project2/apex_cpu_pipeline_simulator_part2",
+        "program": "/home/kgunase1/CS520/Project2/apex_cpu_pipeline_simulator_part2",
+>>>>>>> origin/main
         "MIMode": "gdb",
         "miDebuggerPath": "gdb",
         "setupCommands": [
