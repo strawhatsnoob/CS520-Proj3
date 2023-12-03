@@ -1361,6 +1361,15 @@ APEX_cpu_init(const char *filename)
     int i;
     APEX_CPU *cpu;
 
+    cpu->bq_size = 4;
+    cpu->bq_head = 0;
+    cpu->bq_tail = 0;
+
+    cpu->iq_size = 16;
+    cpu->iq_head = 0;
+    cpu->iq_tail = 0;
+
+
     if (!filename)
     {
         return NULL;
@@ -1456,6 +1465,12 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_decode(cpu);
         APEX_fetch(cpu);
 
+        // Issue instructions from BQ and IQ
+        APEX_cpu_issue_instructions(cpu);
+
+        // Dispatch instructions to BQ and IQ
+        APEX_cpu_dispatch_instructions(cpu);
+
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
         printf("Z %d \n", cpu->zero_flag);
@@ -1477,6 +1492,84 @@ APEX_cpu_run(APEX_CPU *cpu)
         cpu->counter++;
     }
 }
+
+void APEX_cpu_dispatch(APEX_CPU *cpu, CPU_Stage *stage) {
+    // Check for branch instructions (BZ, BNZ, BP, BNP, JUMP, JALR)
+    if (stage->opcode == OPCODE_BZ || stage->opcode == OPCODE_BNZ || stage->opcode == OPCODE_BP ||
+        stage->opcode == OPCODE_BNP || stage->opcode == OPCODE_JUMP || stage->opcode == OPCODE_JALR) {
+        
+        // Dispatch to Branch Instruction Queue (BQ)
+        if (cpu->bq_tail < cpu->bq_size) {
+            cpu->bq[cpu->bq_tail] = *stage;
+            cpu->bq_tail++;
+        } else {
+            fprintf(stderr, "Error: Branch Instruction Queue (BQ) is full. Instruction cannot be dispatched.\n");
+        }
+    } else {
+        // Dispatch to Instruction Queue (IQ)
+        if (cpu->iq_tail < cpu->iq_size) {
+            cpu->iq[cpu->iq_tail] = *stage;
+            cpu->iq_tail++;
+        } else {
+            fprintf(stderr, "Error: Instruction Queue (IQ) is full. Instruction cannot be dispatched.\n");
+        }
+    }
+}
+
+
+void APEX_cpu_dispatch_instructions(APEX_CPU *cpu) {
+    // Dispatch instructions from BQ
+    for (int i = 0; i < cpu->bq_size; ++i) {
+        if (cpu->bq[i].has_insn && !cpu->bq[i].simulator_flag) {
+            APEX_cpu_dispatch(cpu, &cpu->bq[i]);
+        }
+    }
+
+    // Dispatch instructions from IQ
+    for (int i = 0; i < cpu->iq_size; ++i) {
+        if (cpu->iq[i].has_insn && !cpu->iq[i].simulator_flag) {
+            APEX_cpu_dispatch(cpu, &cpu->iq[i]);
+        }
+    }
+}
+
+void APEX_cpu_issue_instructions(APEX_CPU *cpu) {
+    // Check if there are instructions in BQ
+    if (cpu->bq_head != -1) {
+        cpu->fetch = cpu->bq[cpu->bq_head];
+
+        // Update BQ-related data structures
+        if (cpu->bq_head == cpu->bq_tail) {
+            cpu->bq_head = cpu->bq_tail = -1; // BQ becomes empty
+        } else {
+            cpu->bq_head = (cpu->bq_head + 1) % cpu->bq_size;
+        }
+
+    }
+
+    // Check if there is space in IQ and there are instructions ready to issue
+    if (cpu->iq_head != -1) {
+        cpu->decode = cpu->iq[cpu->iq_head];
+
+        // Update IQ-related data structures
+        if (cpu->iq_head == cpu->iq_tail) {
+            cpu->iq_head = cpu->iq_tail = -1; // IQ becomes empty
+        } else {
+            cpu->iq_head = (cpu->iq_head + 1) % cpu->iq_size;
+        }
+
+        /* if (cpu->rename_table[cpu->decode.rd] == -1) {
+            // Physical register is available, use it
+            cpu->rename_table[cpu->decode.rd] = cpu->free_physical_regs[0];
+            cpu->free_physical_regs[0] = cpu->free_physical_regs[1];
+            cpu->free_physical_regs[1] = cpu->free_physical_regs[2];
+            // Clear the entry in the free list
+            cpu->free_physical_regs[2] = -1;
+        } */
+    }
+}
+
+
 
 /*
  * This function deallocates APEX CPU.
