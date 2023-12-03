@@ -38,6 +38,9 @@ main(int argc, char const *argv[])
         exit(1);
     }
 
+    fprintf(stderr, "Instructions in BQ: %d\n", cpu->bq_size);
+    fprintf(stderr, "Instructions in IQ: %d\n", cpu->iq_size);
+
     APEX_cpu_run(cpu);
     APEX_cpu_stop(cpu);
     return 0;
