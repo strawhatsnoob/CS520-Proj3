@@ -275,194 +275,194 @@ static void remove_from_btb(APEX_CPU *cpu) {
     }
 }
 
-static void update_with_forwarded_value(APEX_CPU *cpu) {
-    if(cpu->writeback.has_insn) {
-                    if(strcmp(cpu->writeback.opcode_str, "LOADP") == 0) {
-                        printf("loadedP value %d", cpu->writeback.data_forward);
-                        if(cpu->writeback.rd == cpu->decode.rs1 && cpu->writeback.rd == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->writeback.data_forward;
-                            cpu->decode.rs2_value = cpu->writeback.data_forward;
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rd == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->writeback.data_forward;
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rd == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->writeback.data_forward;
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rs1 == cpu->decode.rs1 && cpu->writeback.rs1 == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
-                            cpu->decode.rs2_value = cpu->writeback.updated_register_src1;
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rs1 == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rs1 == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->writeback.updated_register_src1;
-                            cpu->is_data_forwarded = 1;
-                        } else {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        }
-                    } else if(strcmp(cpu->writeback.opcode_str, "STOREP") == 0) {
-                        if(cpu->writeback.rs2 == cpu->decode.rs1 && cpu->writeback.rs1 == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->writeback.data_forward;
-                            cpu->decode.rs2_value = cpu->writeback.data_forward;
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rs2 == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->writeback.data_forward;
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rs2 == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->writeback.data_forward;
-                            cpu->is_data_forwarded = 1;
-                        } else {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        }
-                    } else {
-                        if(cpu->writeback.rd == cpu->decode.rs1 && cpu->writeback.rd == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->writeback.data_forward;
-                            cpu->decode.rs2_value = cpu->writeback.data_forward;
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rd == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->writeback.data_forward;
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                            cpu->is_data_forwarded = 1;
-                        } else if(cpu->writeback.rd == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->writeback.data_forward;
-                            cpu->is_data_forwarded = 1;
-                        } else {
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        }
-                    }
-                }
-                if(cpu->memory.has_insn) {
-                    if(strcmp(cpu->memory.opcode_str, "LOADP") == 0) {
-                        printf("loadedP value %d", cpu->memory.data_forward);
-                        if(cpu->memory.rs1 == cpu->decode.rs1 && cpu->memory.rs1 == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->memory.data_forward;
-                            cpu->decode.rs2_value = cpu->memory.data_forward;
-                        } else if(cpu->memory.rs1 == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->memory.data_forward;
-                            if(!cpu->is_data_forwarded)
-                                cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        } else if(cpu->memory.rs1 == cpu->decode.rs2) {
-                            if(!cpu->is_data_forwarded)
-                                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->memory.data_forward;
-                        } else if(!cpu->is_data_forwarded){
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        }
-                    } else if(strcmp(cpu->memory.opcode_str, "STOREP") == 0) {
-                        if(cpu->memory.rs2 == cpu->decode.rs1 && cpu->memory.rs1 == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->memory.data_forward;
-                            cpu->decode.rs2_value = cpu->memory.data_forward;
-                        } else if(cpu->memory.rs2 == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->memory.data_forward;
-                            if(!cpu->is_data_forwarded)
-                                cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        } else if(cpu->memory.rs2 == cpu->decode.rs2) {
-                            if(!cpu->is_data_forwarded)
-                                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->memory.data_forward;
-                        } else if(!cpu->is_data_forwarded){
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        }
-                    } else {
-                        if(cpu->memory.rd == cpu->decode.rs1 && cpu->memory.rd == cpu->decode.rs2) {
-                            cpu->decode.rs1_value = cpu->memory.data_forward;
-                            cpu->decode.rs2_value = cpu->memory.data_forward;
-                        } else if(cpu->memory.rd == cpu->decode.rs1) {
-                            cpu->decode.rs1_value = cpu->memory.data_forward;
-                            if(!cpu->is_data_forwarded)
-                                cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        } else if(cpu->memory.rd == cpu->decode.rs2) {
-                            if(!cpu->is_data_forwarded)
-                                cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->memory.data_forward;
-                        } else if(!cpu->is_data_forwarded){
-                            cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                            cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-                        }
-                    }
-                }
-}
+// static void update_with_forwarded_value(APEX_CPU *cpu) {
+//     if(cpu->writeback.has_insn) {
+//                     if(strcmp(cpu->writeback.opcode_str, "LOADP") == 0) {
+//                         printf("loadedP value %d", cpu->writeback.data_forward);
+//                         if(cpu->writeback.rd == cpu->decode.rs1 && cpu->writeback.rd == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
+//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rd == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rd == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rs1 == cpu->decode.rs1 && cpu->writeback.rs1 == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
+//                             cpu->decode.rs2_value = cpu->writeback.updated_register_src1;
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rs1 == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rs1 == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->writeback.updated_register_src1;
+//                             cpu->is_data_forwarded = 1;
+//                         } else {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         }
+//                     } else if(strcmp(cpu->writeback.opcode_str, "STOREP") == 0) {
+//                         if(cpu->writeback.rs2 == cpu->decode.rs1 && cpu->writeback.rs1 == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
+//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rs2 == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rs2 == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
+//                             cpu->is_data_forwarded = 1;
+//                         } else {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         }
+//                     } else {
+//                         if(cpu->writeback.rd == cpu->decode.rs1 && cpu->writeback.rd == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
+//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rd == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                             cpu->is_data_forwarded = 1;
+//                         } else if(cpu->writeback.rd == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
+//                             cpu->is_data_forwarded = 1;
+//                         } else {
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         }
+//                     }
+//                 }
+//                 if(cpu->memory.has_insn) {
+//                     if(strcmp(cpu->memory.opcode_str, "LOADP") == 0) {
+//                         printf("loadedP value %d", cpu->memory.data_forward);
+//                         if(cpu->memory.rs1 == cpu->decode.rs1 && cpu->memory.rs1 == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->memory.data_forward;
+//                             cpu->decode.rs2_value = cpu->memory.data_forward;
+//                         } else if(cpu->memory.rs1 == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->memory.data_forward;
+//                             if(!cpu->is_data_forwarded)
+//                                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         } else if(cpu->memory.rs1 == cpu->decode.rs2) {
+//                             if(!cpu->is_data_forwarded)
+//                                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->memory.data_forward;
+//                         } else if(!cpu->is_data_forwarded){
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         }
+//                     } else if(strcmp(cpu->memory.opcode_str, "STOREP") == 0) {
+//                         if(cpu->memory.rs2 == cpu->decode.rs1 && cpu->memory.rs1 == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->memory.data_forward;
+//                             cpu->decode.rs2_value = cpu->memory.data_forward;
+//                         } else if(cpu->memory.rs2 == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->memory.data_forward;
+//                             if(!cpu->is_data_forwarded)
+//                                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         } else if(cpu->memory.rs2 == cpu->decode.rs2) {
+//                             if(!cpu->is_data_forwarded)
+//                                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->memory.data_forward;
+//                         } else if(!cpu->is_data_forwarded){
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         }
+//                     } else {
+//                         if(cpu->memory.rd == cpu->decode.rs1 && cpu->memory.rd == cpu->decode.rs2) {
+//                             cpu->decode.rs1_value = cpu->memory.data_forward;
+//                             cpu->decode.rs2_value = cpu->memory.data_forward;
+//                         } else if(cpu->memory.rd == cpu->decode.rs1) {
+//                             cpu->decode.rs1_value = cpu->memory.data_forward;
+//                             if(!cpu->is_data_forwarded)
+//                                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         } else if(cpu->memory.rd == cpu->decode.rs2) {
+//                             if(!cpu->is_data_forwarded)
+//                                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->memory.data_forward;
+//                         } else if(!cpu->is_data_forwarded){
+//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+//                         }
+//                     }
+//                 }
+// }
 
 
-static void update_rs1_with_forwarded_value(APEX_CPU *cpu) {
-  if (cpu->writeback.has_insn &&
-      (strcmp(cpu->writeback.opcode_str, "BZ") != 0 &&
-       strcmp(cpu->writeback.opcode_str, "BNZ") != 0 &&
-       strcmp(cpu->writeback.opcode_str, "BP") != 0 &&
-       strcmp(cpu->writeback.opcode_str, "BNP") != 0 &&
-       strcmp(cpu->writeback.opcode_str, "BN") != 0 &&
-       strcmp(cpu->writeback.opcode_str, "BNN") != 0)) {
-    printf("rs1 %d", cpu->decode.rs1_value);
-    if (strcmp(cpu->writeback.opcode_str, "LOADP") == 0) {
-      printf("loadedP value %d", cpu->writeback.data_forward);
-      if (cpu->writeback.rd == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->writeback.data_forward;
-        cpu->is_data_forwarded = 1;
-      } else if (cpu->writeback.rs1 == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
-        cpu->is_data_forwarded = 1;
-      } else {
-        cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-      }
-    } else if (strcmp(cpu->writeback.opcode_str, "STOREP") == 0) {
-      if (cpu->writeback.rs2 == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->writeback.data_forward;
-      } else {
-        cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-      }
-    } else {
-      if (cpu->writeback.rd == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->writeback.data_forward;
-        cpu->is_data_forwarded = 1;
-      } else {
-        cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-      }
-      printf("rs1 %d", cpu->decode.rs1_value);
-    }
-  }
-  if (cpu->memory.has_insn && (strcmp(cpu->memory.opcode_str, "BZ") != 0 &&
-                               strcmp(cpu->memory.opcode_str, "BNZ") != 0 &&
-                               strcmp(cpu->memory.opcode_str, "BP") != 0 &&
-                               strcmp(cpu->memory.opcode_str, "BNP") != 0 &&
-                               strcmp(cpu->memory.opcode_str, "BN") != 0 &&
-                               strcmp(cpu->memory.opcode_str, "BNN") != 0)) {
-    if (strcmp(cpu->memory.opcode_str, "LOADP") == 0) {
-      printf("loadedP value %d", cpu->memory.data_forward);
-      if (cpu->memory.rs1 == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->memory.data_forward;
-      } else {
-        cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-      }
-    } else if (strcmp(cpu->memory.opcode_str, "STOREP") == 0) {
-      if (cpu->memory.rs2 == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->memory.data_forward;
-      } else {
-        cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-      }
-    } else {
-      if (cpu->memory.rd == cpu->decode.rs1) {
-        cpu->decode.rs1_value = cpu->memory.data_forward;
-      } else {
-        if (!cpu->is_data_forwarded)
-          cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-      }
-    }
-  }
-}
+// static void update_rs1_with_forwarded_value(APEX_CPU *cpu) {
+//   if (cpu->writeback.has_insn &&
+//       (strcmp(cpu->writeback.opcode_str, "BZ") != 0 &&
+//        strcmp(cpu->writeback.opcode_str, "BNZ") != 0 &&
+//        strcmp(cpu->writeback.opcode_str, "BP") != 0 &&
+//        strcmp(cpu->writeback.opcode_str, "BNP") != 0 &&
+//        strcmp(cpu->writeback.opcode_str, "BN") != 0 &&
+//        strcmp(cpu->writeback.opcode_str, "BNN") != 0)) {
+//     printf("rs1 %d", cpu->decode.rs1_value);
+//     if (strcmp(cpu->writeback.opcode_str, "LOADP") == 0) {
+//       printf("loadedP value %d", cpu->writeback.data_forward);
+//       if (cpu->writeback.rd == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->writeback.data_forward;
+//         cpu->is_data_forwarded = 1;
+//       } else if (cpu->writeback.rs1 == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
+//         cpu->is_data_forwarded = 1;
+//       } else {
+//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//       }
+//     } else if (strcmp(cpu->writeback.opcode_str, "STOREP") == 0) {
+//       if (cpu->writeback.rs2 == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->writeback.data_forward;
+//       } else {
+//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//       }
+//     } else {
+//       if (cpu->writeback.rd == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->writeback.data_forward;
+//         cpu->is_data_forwarded = 1;
+//       } else {
+//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//       }
+//       printf("rs1 %d", cpu->decode.rs1_value);
+//     }
+//   }
+//   if (cpu->memory.has_insn && (strcmp(cpu->memory.opcode_str, "BZ") != 0 &&
+//                                strcmp(cpu->memory.opcode_str, "BNZ") != 0 &&
+//                                strcmp(cpu->memory.opcode_str, "BP") != 0 &&
+//                                strcmp(cpu->memory.opcode_str, "BNP") != 0 &&
+//                                strcmp(cpu->memory.opcode_str, "BN") != 0 &&
+//                                strcmp(cpu->memory.opcode_str, "BNN") != 0)) {
+//     if (strcmp(cpu->memory.opcode_str, "LOADP") == 0) {
+//       printf("loadedP value %d", cpu->memory.data_forward);
+//       if (cpu->memory.rs1 == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->memory.data_forward;
+//       } else {
+//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//       }
+//     } else if (strcmp(cpu->memory.opcode_str, "STOREP") == 0) {
+//       if (cpu->memory.rs2 == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->memory.data_forward;
+//       } else {
+//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//       }
+//     } else {
+//       if (cpu->memory.rd == cpu->decode.rs1) {
+//         cpu->decode.rs1_value = cpu->memory.data_forward;
+//       } else {
+//         if (!cpu->is_data_forwarded)
+//           cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+//       }
+//     }
+//   }
+// }
 
 static void rename_rd(APEX_CPU *cpu) {
     int length = cpu->physical_queue_length;
@@ -1438,14 +1438,6 @@ APEX_cpu_init(const char *filename)
     int i;
     APEX_CPU *cpu;
 
-    cpu->bq_size = 4;
-    cpu->bq_head = 0;
-    cpu->bq_tail = 0;
-
-    cpu->iq_size = 16;
-    cpu->iq_head = 0;
-    cpu->iq_tail = 0;
-
 
     if (!filename)
     {
@@ -1509,6 +1501,14 @@ APEX_cpu_init(const char *filename)
         cpu->physical_queue[i] = i;
     }
     cpu->physical_queue_length = physical_queue_length;
+
+    cpu->bq_size = 4;
+    cpu->bq_head = 0;
+    cpu->bq_tail = 0;
+
+    cpu->iq_size = 16;
+    cpu->iq_head = 0;
+    cpu->iq_tail = 0;
 
     cpu->counter = 0;
     cpu->index = 0;

@@ -50,12 +50,9 @@ typedef struct CPU_Stage
     int data_forward;
     int btb_index;
     int is_btb_hit;
-<<<<<<< HEAD
     int pd;
     int ps1;
     int ps2;
-=======
->>>>>>> origin/main
 
 } CPU_Stage;
 
@@ -68,15 +65,12 @@ typedef struct BTB {
     int index;
 }BTB;
 
-<<<<<<< HEAD
 typedef struct Register_Rename {
     int allocated;
     int valid_bit;
     int data;
 }Register_Rename;
 
-=======
->>>>>>> origin/main
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -99,12 +93,9 @@ typedef struct APEX_CPU
     int simulator_flag;
     int is_data_forwarded;
     int index;
-<<<<<<< HEAD
     int rename_table[41];
     int physical_queue[25];
     int physical_queue_length;
-=======
->>>>>>> origin/main
 
     /* Pipeline stages */
     CPU_Stage fetch;
@@ -113,11 +104,8 @@ typedef struct APEX_CPU
     CPU_Stage memory;
     CPU_Stage writeback;
     BTB branch_target_buffer[4];
-<<<<<<< HEAD
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
-=======
->>>>>>> origin/main
 
     // Branch Instruction Queue (BQ)
     CPU_Stage bq[4];
