@@ -1567,6 +1567,8 @@ void APEX_cpu_issue_instructions(APEX_CPU *cpu) {
             cpu->free_physical_regs[2] = -1;
         } */
     }
+
+    
 }
 
 
