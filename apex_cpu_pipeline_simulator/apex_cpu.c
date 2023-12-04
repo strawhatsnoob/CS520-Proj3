@@ -587,10 +587,12 @@ static void rename_rs1(APEX_CPU *cpu) {
             cpu->physical_register[cpu->decode.ps1].data = cpu->data_forward[0].data;
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
             cpu->physical_register[cpu->decode.ps1].allocated = 1;
+            cpu->data_forward[0].is_allocated = 0;
         } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
             cpu->physical_register[cpu->decode.ps2].data = cpu->data_forward[1].data;
             cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
             cpu->physical_register[cpu->decode.ps2].allocated = 1;
+            cpu->data_forward[1].is_allocated = 0;
         }
         break;
       }
@@ -619,10 +621,12 @@ static void rename_rs2(APEX_CPU *cpu) {
             cpu->physical_register[cpu->decode.ps2].data = cpu->data_forward[0].data;
             cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
             cpu->physical_register[cpu->decode.ps2].allocated = 1;
+            cpu->data_forward[0].is_allocated = 0;
         } else if(cpu->data_forward[1].physical_address == cpu->decode.ps2) {
             cpu->physical_register[cpu->decode.ps2].data = cpu->data_forward[1].data;
             cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
             cpu->physical_register[cpu->decode.ps2].allocated = 1;
+            cpu->data_forward[1].is_allocated = 0;
         }
 
         break;
@@ -641,6 +645,271 @@ static void rename_rs2(APEX_CPU *cpu) {
     }
 }
 
+static void iq_entry_pd_ps1_ps2(APEX_CPU *cpu) {
+    for(int i = 0; i < 16; i++) {
+            if(cpu->iq_entries[i].allocated == 0) {
+                cpu->iq_entries[i].allocated = 1;
+                cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+
+                cpu->iq_entries[i].dest = cpu->dispatch.pd;
+                
+                cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+
+                cpu->iq_entries[i].src2_tag = cpu->dispatch.ps2;
+                if(cpu->physical_register[cpu->dispatch.ps2].allocated == 1 && 
+                cpu->physical_register[cpu->dispatch.ps2].valid_bit == 1) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->physical_register[cpu->dispatch.ps2].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps2) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps2) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+            }
+        }
+}
+
+static void iq_entry_pd_ps1(APEX_CPU *cpu) {
+    for(int i = 0; i < 16; i++) {
+            if(cpu->iq_entries[i].allocated == 0) {
+                cpu->iq_entries[i].allocated = 1;
+                cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+
+                cpu->iq_entries[i].dest = cpu->dispatch.pd;
+                
+                cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+            }
+        }
+}
+
+static void iq_entry_ps1_ps2(APEX_CPU *cpu) {
+    for(int i = 0; i < 16; i++) {
+            if(cpu->iq_entries[i].allocated == 0) {
+                cpu->iq_entries[i].allocated = 1;
+                cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+
+                cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+
+                cpu->iq_entries[i].src2_tag = cpu->dispatch.ps2;
+                if(cpu->physical_register[cpu->dispatch.ps2].allocated == 1 && 
+                cpu->physical_register[cpu->dispatch.ps2].valid_bit == 1) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->physical_register[cpu->dispatch.ps2].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps2) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps2) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+            }
+        }
+}
+
+static void iq_entry_ps1(APEX_CPU *cpu) {
+    for(int i = 0; i < 16; i++) {
+            if(cpu->iq_entries[i].allocated == 0) {
+                cpu->iq_entries[i].allocated = 1;
+                cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+
+                
+                cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+            }
+        }
+}
+
+static void iq_entry_pd(APEX_CPU *cpu) {
+    for(int i = 0; i < 16; i++) {
+            if(cpu->iq_entries[i].allocated == 0) {
+                cpu->iq_entries[i].allocated = 1;
+                cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+                cpu->iq_entries[i].dest = cpu->dispatch.pd;
+                cpu->iq_entries[i].src1_valid_bit = 1;
+                cpu->iq_entries[i].src2_valid_bit = 1;
+            }
+        }
+}
+
+/*
+ * Dispatch Stage of APEX Pipeline
+ *
+ */
+static void
+APEX_dispatch(APEX_CPU *cpu) {
+    if(cpu->dispatch.has_insn) {
+        switch (cpu->decode.opcode)
+        {
+            case OPCODE_ADD:
+            case OPCODE_SUB:
+            case OPCODE_AND:
+            case OPCODE_OR:
+            case OPCODE_XOR:
+            case OPCODE_MUL:
+            case OPCODE_DIV:
+            {
+                iq_entry_pd_ps1_ps2(cpu);
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+
+                // update_with_forwarded_value(cpu);
+                // cpu->is_data_forwarded = 0;
+                break;
+            }
+
+            case OPCODE_ADDL:
+            case OPCODE_SUBL:
+            case OPCODE_JALR:
+            {
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                iq_entry_pd_ps1(cpu);
+
+                // update_rs1_with_forwarded_value(cpu);
+                // printf("rs1 %d", cpu->decode.rs1_value);
+                // cpu->is_data_forwarded = 0;
+                break;
+            }
+
+            case OPCODE_LOAD:
+            case OPCODE_LOADP:
+            {
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                iq_entry_pd_ps1(cpu);
+
+                // update_rs1_with_forwarded_value(cpu);
+                // cpu->is_data_forwarded = 0;
+                // cpu->scoreBoarding[cpu->decode.rd] = 1;
+                // cpu->scoreBoarding[cpu->decode.rs1] = 1;
+                break;
+            }
+
+
+            case OPCODE_MOVC:
+            {
+                /* MOVC doesn't have register operands */
+                // cpu->scoreBoarding[cpu->decode.rd] = 1;
+                iq_entry_pd(cpu);
+                break;
+            }
+
+            case OPCODE_NOP:
+            {
+                break;
+            }
+
+            case OPCODE_STORE:
+            case OPCODE_STOREP:
+            {
+                iq_entry_ps1_ps2(cpu);
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+
+                // update_with_forwarded_value(cpu);
+                // cpu->is_data_forwarded = 0;
+                // cpu->scoreBoarding[cpu->decode.rs1] = 1;
+                // cpu->scoreBoarding[cpu->decode.rs2] = 1;
+                break;   
+            }
+
+            case OPCODE_CMP:
+            {
+                iq_entry_ps1_ps2(cpu);
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+                // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
+
+                // update_with_forwarded_value(cpu);
+                // cpu->is_data_forwarded = 0;
+                break;
+            }
+
+            case OPCODE_CML:
+            case OPCODE_JUMP:
+            {
+                iq_entry_ps1(cpu);
+                // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
+
+                // update_rs1_with_forwarded_value(cpu);
+                // cpu->is_data_forwarded = 0;
+                break;
+            }
+
+            case OPCODE_BZ:
+            case OPCODE_BNZ:
+            case OPCODE_BP:
+            case OPCODE_BNP:
+            {
+                break;
+            }
+        }
+
+        /* Copy data from decode latch to execute latch*/
+        cpu->execute = cpu->dispatch;
+        cpu->dispatch.has_insn = FALSE;
+
+        if (ENABLE_DEBUG_MESSAGES)
+        {
+            display_stage_content("Dispatch/RF", &cpu->decode);
+        }
+    }
+}
+
 /*
  * Decode Stage of APEX Pipeline
  *
@@ -649,7 +918,7 @@ static void rename_rs2(APEX_CPU *cpu) {
 static void
 APEX_decode(APEX_CPU *cpu)
 {
-    if (cpu->decode.has_insn)
+    if (cpu->decode.has_insn && (cpu->free_list != 0))
     // && (cpu->free_list != 0) &&
     // ((cpu->decode.is_empty_rd || cpu->scoreBoarding[cpu->decode.rd] == 0) &&  (cpu->decode.is_empty_rs1 || cpu->scoreBoarding[cpu->decode.rs1] == 0) && (cpu->decode.is_empty_rs2 || cpu->scoreBoarding[cpu->decode.rs2] == 0)))
     {
@@ -792,12 +1061,11 @@ APEX_decode(APEX_CPU *cpu)
         }
 
         /* Copy data from decode latch to execute latch*/
-        cpu->execute = cpu->decode;
+        cpu->dispatch = cpu->decode;
         cpu->decode.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
         {
-            printf("entering");
             display_stage_content("Decode/RF", &cpu->decode);
         }
     }
@@ -1670,6 +1938,7 @@ APEX_cpu_run(APEX_CPU *cpu)
         }
         APEX_memory(cpu);
         APEX_execute(cpu);
+        APEX_dispatch(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
 

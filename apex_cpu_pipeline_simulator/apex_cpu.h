@@ -78,6 +78,19 @@ typedef struct Data_Forward {
     int is_allocated;
 }Data_Forward;
 
+typedef struct IQ_Entries {
+    int allocated;
+    int opcode;
+    int literal;
+    int src1_valid_bit;
+    int src1_tag;
+    int src1_value;
+    int src2_valid_bit;
+    int src2_tag;
+    int src2_value;
+    int dest;
+}IQ_Entries;
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -108,6 +121,7 @@ typedef struct APEX_CPU
     /* Pipeline stages */
     CPU_Stage fetch;
     CPU_Stage decode;
+    CPU_Stage dispatch;
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
@@ -115,6 +129,7 @@ typedef struct APEX_CPU
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
     Data_Forward data_forward[2];
+    IQ_Entries iq_entries[16];
 
     // Branch Instruction Queue (BQ)
     CPU_Stage bq[4];
