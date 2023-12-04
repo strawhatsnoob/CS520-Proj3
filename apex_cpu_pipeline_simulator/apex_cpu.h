@@ -71,6 +71,13 @@ typedef struct Register_Rename {
     int data;
 }Register_Rename;
 
+typedef struct Data_Forward {
+    int physical_address;
+    int data;
+    int flag;
+    int is_allocated;
+}Data_Forward;
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -96,6 +103,7 @@ typedef struct APEX_CPU
     int rename_table[41];
     int physical_queue[25];
     int physical_queue_length;
+    int free_list;
 
     /* Pipeline stages */
     CPU_Stage fetch;
@@ -106,6 +114,7 @@ typedef struct APEX_CPU
     BTB branch_target_buffer[4];
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
+    Data_Forward data_forward[2];
 
     // Branch Instruction Queue (BQ)
     CPU_Stage bq[4];
