@@ -23,6 +23,8 @@ get_code_memory_index_from_pc(const int pc)
     return (pc - 4000) / 4;
 }
 
+//mb_LSQ
+
 static void
 print_instruction(const CPU_Stage *stage)
 {
