@@ -1824,11 +1824,6 @@ APEX_cpu_init(const char *filename)
 {
     int i;
     APEX_CPU *cpu;
-
-<<<<<<< HEAD:apex_cpu_pipeline_simulator_part2/apex_cpu.c
-=======
-
->>>>>>> origin/main:apex_cpu_pipeline_simulator/apex_cpu.c
     if (!filename)
     {
         return NULL;
@@ -1948,16 +1943,6 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_dispatch(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
-<<<<<<< HEAD:apex_cpu_pipeline_simulator_part2/apex_cpu.c
- 
-=======
-
-        // Issue instructions from BQ and IQ
-        // APEX_cpu_issue_instructions(cpu);
-
-        // Dispatch instructions to BQ and IQ
-        // APEX_cpu_dispatch_instructions(cpu);
->>>>>>> origin/main:apex_cpu_pipeline_simulator/apex_cpu.c
 
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
