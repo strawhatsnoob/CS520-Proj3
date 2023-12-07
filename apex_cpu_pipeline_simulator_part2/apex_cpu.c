@@ -1459,19 +1459,7 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_execute(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
-
-        /* Fetch from IQ if available, else from BQ*/
-        if (cpu -> iq_size > 0) {
-            // Fetch from IQ
-            cpu->fetch = dequeue_iq(cpu); // Implement a dequeue function for IQ
-        }
-        else if (cpu -> bq_size > 0) {
-            // Fetch from BQ
-            cpu->fetch = dequeue_bq(cpu); // Implement a dequeue function for BQ 
-        }
-        else {
-            break;
-        }
+ 
 
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
