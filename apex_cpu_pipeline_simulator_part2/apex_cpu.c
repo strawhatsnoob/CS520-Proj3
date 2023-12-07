@@ -1361,15 +1361,6 @@ APEX_cpu_init(const char *filename)
     int i;
     APEX_CPU *cpu;
 
-    cpu->bq_size = 4;
-    cpu->bq_head = 0;
-    cpu->bq_tail = 0;
-
-    cpu->iq_size = 16;
-    cpu->iq_head = 0;
-    cpu->iq_tail = 0;
-
-
     if (!filename)
     {
         return NULL;
@@ -1387,6 +1378,10 @@ APEX_cpu_init(const char *filename)
     memset(cpu->regs, 0, sizeof(int) * REG_FILE_SIZE);
     memset(cpu->data_memory, 0, sizeof(int) * DATA_MEMORY_SIZE);
     cpu->single_step = ENABLE_SINGLE_STEP;
+
+    /* Initialize IQ and BQ size */
+    cpu -> iq_size = 0;
+    cpu -> bq_size = 0;
 
     /* Parse input file and create code memory */
     cpu->code_memory = create_code_memory(filename, &cpu->code_memory_size);
@@ -1465,11 +1460,18 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_decode(cpu);
         APEX_fetch(cpu);
 
-        // Issue instructions from BQ and IQ
-        APEX_cpu_issue_instructions(cpu);
-
-        // Dispatch instructions to BQ and IQ
-        APEX_cpu_dispatch_instructions(cpu);
+        /* Fetch from IQ if available, else from BQ*/
+        if (cpu -> iq_size > 0) {
+            // Fetch from IQ
+            cpu->fetch = dequeue_iq(cpu); // Implement a dequeue function for IQ
+        }
+        else if (cpu -> bq_size > 0) {
+            // Fetch from BQ
+            cpu->fetch = dequeue_bq(cpu); // Implement a dequeue function for BQ 
+        }
+        else {
+            break;
+        }
 
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
@@ -1493,82 +1495,36 @@ APEX_cpu_run(APEX_CPU *cpu)
     }
 }
 
-void APEX_cpu_dispatch(APEX_CPU *cpu, CPU_Stage *stage) {
-    // Check for branch instructions (BZ, BNZ, BP, BNP, JUMP, JALR)
-    if (stage->opcode == OPCODE_BZ || stage->opcode == OPCODE_BNZ || stage->opcode == OPCODE_BP ||
-        stage->opcode == OPCODE_BNP || stage->opcode == OPCODE_JUMP || stage->opcode == OPCODE_JALR) {
-        
-        // Dispatch to Branch Instruction Queue (BQ)
-        if (cpu->bq_tail < cpu->bq_size) {
-            cpu->bq[cpu->bq_tail] = *stage;
-            cpu->bq_tail++;
-        } else {
-            fprintf(stderr, "Error: Branch Instruction Queue (BQ) is full. Instruction cannot be dispatched.\n");
+APEX_Instruction dequeue_iq(APEX_CPU *cpu) {
+    if (cpu->iq_size > 0) {
+        APEX_Instruction insn = cpu->iq[0];
+        // Shift instructions in IQ to fill the gap
+        for (int i = 1; i < cpu->iq_size; ++i) {
+            cpu->iq[i - 1] = cpu->iq[i];
         }
+        cpu->iq_size--;
+        return insn;
     } else {
-        // Dispatch to Instruction Queue (IQ)
-        if (cpu->iq_tail < cpu->iq_size) {
-            cpu->iq[cpu->iq_tail] = *stage;
-            cpu->iq_tail++;
-        } else {
-            fprintf(stderr, "Error: Instruction Queue (IQ) is full. Instruction cannot be dispatched.\n");
-        }
+        // IQ is empty
+        APEX_Instruction nop_insn = {0}; // Assuming NOP opcode is 0
+        return nop_insn;
     }
 }
 
-
-void APEX_cpu_dispatch_instructions(APEX_CPU *cpu) {
-    // Dispatch instructions from BQ
-    for (int i = 0; i < cpu->bq_size; ++i) {
-        if (cpu->bq[i].has_insn && !cpu->bq[i].simulator_flag) {
-            APEX_cpu_dispatch(cpu, &cpu->bq[i]);
+APEX_Instruction dequeue_bq(APEX_CPU *cpu) {
+    if (cpu->bq_size > 0) {
+        APEX_Instruction insn = cpu->bq[0];
+        // Shift instructions in BQ to fill the gap
+        for (int i = 1; i < cpu->bq_size; ++i) {
+            cpu->bq[i - 1] = cpu->bq[i];
         }
+        cpu->bq_size--;
+        return insn;
+    } else {
+        // BQ is empty
+        APEX_Instruction nop_insn = {0}; // Assuming NOP opcode is 0
+        return nop_insn;
     }
-
-    // Dispatch instructions from IQ
-    for (int i = 0; i < cpu->iq_size; ++i) {
-        if (cpu->iq[i].has_insn && !cpu->iq[i].simulator_flag) {
-            APEX_cpu_dispatch(cpu, &cpu->iq[i]);
-        }
-    }
-}
-
-void APEX_cpu_issue_instructions(APEX_CPU *cpu) {
-    // Check if there are instructions in BQ
-    if (cpu->bq_head != -1) {
-        cpu->fetch = cpu->bq[cpu->bq_head];
-
-        // Update BQ-related data structures
-        if (cpu->bq_head == cpu->bq_tail) {
-            cpu->bq_head = cpu->bq_tail = -1; // BQ becomes empty
-        } else {
-            cpu->bq_head = (cpu->bq_head + 1) % cpu->bq_size;
-        }
-
-    }
-
-    // Check if there is space in IQ and there are instructions ready to issue
-    if (cpu->iq_head != -1) {
-        cpu->decode = cpu->iq[cpu->iq_head];
-
-        // Update IQ-related data structures
-        if (cpu->iq_head == cpu->iq_tail) {
-            cpu->iq_head = cpu->iq_tail = -1; // IQ becomes empty
-        } else {
-            cpu->iq_head = (cpu->iq_head + 1) % cpu->iq_size;
-        }
-
-        /* if (cpu->rename_table[cpu->decode.rd] == -1) {
-            // Physical register is available, use it
-            cpu->rename_table[cpu->decode.rd] = cpu->free_physical_regs[0];
-            cpu->free_physical_regs[0] = cpu->free_physical_regs[1];
-            cpu->free_physical_regs[1] = cpu->free_physical_regs[2];
-            // Clear the entry in the free list
-            cpu->free_physical_regs[2] = -1;
-        } */
-    }
-
-    
 }
 
 
