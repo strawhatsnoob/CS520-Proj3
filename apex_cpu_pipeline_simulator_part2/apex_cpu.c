@@ -1483,38 +1483,6 @@ APEX_cpu_run(APEX_CPU *cpu)
     }
 }
 
-APEX_Instruction dequeue_iq(APEX_CPU *cpu) {
-    if (cpu->iq_size > 0) {
-        APEX_Instruction insn = cpu->iq[0];
-        // Shift instructions in IQ to fill the gap
-        for (int i = 1; i < cpu->iq_size; ++i) {
-            cpu->iq[i - 1] = cpu->iq[i];
-        }
-        cpu->iq_size--;
-        return insn;
-    } else {
-        // IQ is empty
-        APEX_Instruction nop_insn = {0}; // Assuming NOP opcode is 0
-        return nop_insn;
-    }
-}
-
-APEX_Instruction dequeue_bq(APEX_CPU *cpu) {
-    if (cpu->bq_size > 0) {
-        APEX_Instruction insn = cpu->bq[0];
-        // Shift instructions in BQ to fill the gap
-        for (int i = 1; i < cpu->bq_size; ++i) {
-            cpu->bq[i - 1] = cpu->bq[i];
-        }
-        cpu->bq_size--;
-        return insn;
-    } else {
-        // BQ is empty
-        APEX_Instruction nop_insn = {0}; // Assuming NOP opcode is 0
-        return nop_insn;
-    }
-}
-
 
 
 /*
