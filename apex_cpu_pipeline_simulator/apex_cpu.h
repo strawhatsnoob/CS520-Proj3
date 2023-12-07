@@ -47,8 +47,13 @@ typedef struct CPU_Stage
     int simulate_counter;
     int counter;
     int simulator_flag;
+    int data_forward;
     int btb_index;
     int is_btb_hit;
+    int pd;
+    int ps1;
+    int ps2;
+
 } CPU_Stage;
 
 typedef struct BTB {
@@ -59,6 +64,32 @@ typedef struct BTB {
     int is_used;
     int index;
 }BTB;
+
+typedef struct Register_Rename {
+    int allocated;
+    int valid_bit;
+    int data;
+}Register_Rename;
+
+typedef struct Data_Forward {
+    int physical_address;
+    int data;
+    int flag;
+    int is_allocated;
+}Data_Forward;
+
+typedef struct IQ_Entries {
+    int allocated;
+    int opcode;
+    int literal;
+    int src1_valid_bit;
+    int src1_tag;
+    int src1_value;
+    int src2_valid_bit;
+    int src2_tag;
+    int src2_value;
+    int dest;
+}IQ_Entries;
 
 /* Model of APEX CPU */
 typedef struct APEX_CPU
@@ -80,17 +111,33 @@ typedef struct APEX_CPU
     int simulate_counter;
     int counter;
     int simulator_flag;
+    int is_data_forwarded;
     int index;
+    int rename_table[41];
+    int physical_queue[25];
+    int physical_queue_length;
+    int free_list;
 
     /* Pipeline stages */
     CPU_Stage fetch;
     CPU_Stage decode;
+    CPU_Stage dispatch;
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
     BTB branch_target_buffer[4];
-} APEX_CPU;
+    Register_Rename physical_register[25];
+    Register_Rename condition_code_register[16];
+    Data_Forward data_forward[2];
+    IQ_Entries iq_entries[16];
 
+    // Add two queues for IQ and BQ
+    APEX_Instruction iq[MAX_IQ_SIZE];
+    APEX_Instruction bq[MAX_BQ_SIZE];
+    
+    int iq_size; // Number of instructions in IQ
+    int bq_size; // Number of instructions in BQ
+} APEX_CPU;
 
 APEX_Instruction *create_code_memory(const char *filename, int *size);
 APEX_CPU *APEX_cpu_init(const char *filename);
