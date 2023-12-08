@@ -106,7 +106,7 @@ typedef struct ROB_Queue {
     ROB_Entries rob_entries[32];
     int ROB_head;
     int ROB_tail;
-    int capacity;
+    int *capacity;
 }ROB_Queue;
 
 /* Model of APEX CPU */
@@ -135,11 +135,19 @@ typedef struct APEX_CPU
     int physical_queue[25];
     int physical_queue_length;
     int free_list;
+    int prev_dest;
+    int memory_address;
 
     /* Pipeline stages */
     CPU_Stage fetch;
     CPU_Stage decode;
     CPU_Stage dispatch;
+    CPU_Stage afu;
+    CPU_Stage bfu;
+    CPU_Stage mulfu;
+    CPU_Stage mau;
+    CPU_Stage intfu;
+    CPU_Stage rob;
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
