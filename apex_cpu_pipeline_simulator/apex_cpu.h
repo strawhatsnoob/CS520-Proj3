@@ -91,6 +91,24 @@ typedef struct IQ_Entries {
     int dest;
 }IQ_Entries;
 
+typedef struct ROB_Entries {
+    int entry_bit;
+    int opcode;
+    int pc_value;
+    int dest_phsyical_register;
+    int rename_table_entry;
+    int dest_arch_register;
+    int lsq_index;
+    int memory_error_code;
+}ROB_Entries;
+
+typedef struct ROB_Queue {
+    ROB_Entries rob_entries[32];
+    int ROB_head;
+    int ROB_tail;
+    int capacity;
+}ROB_Queue;
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -125,11 +143,15 @@ typedef struct APEX_CPU
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
+
+
     BTB branch_target_buffer[4];
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
     Data_Forward data_forward[2];
-    IQ_Entries iq_entries[16];
+    IQ_Entries iq_entries[24];
+    ROB_Entries rob_entry;
+    ROB_Queue ROB_queue;
 
     // Branch Instruction Queue (BQ)
     CPU_Stage bq[4];

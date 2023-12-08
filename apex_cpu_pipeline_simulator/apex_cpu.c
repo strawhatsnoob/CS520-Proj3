@@ -561,6 +561,42 @@ static void remove_from_btb(APEX_CPU *cpu) {
 //   }
 // }
 
+int isEmpty(APEX_CPU *cpu) {
+    return (cpu->ROB_queue.ROB_head == -1);
+}
+
+int isFull(APEX_CPU *cpu) {
+    return ((cpu->ROB_queue.ROB_tail + 1) % cpu->ROB_queue.capacity == cpu->ROB_queue.ROB_head);
+}
+
+void enqueue(APEX_CPU *cpu) {
+    if(isFull(cpu)) {
+        printf("ROB Queue is full.");
+        return;
+    }
+    if(isEmpty(cpu)) {
+        cpu->ROB_queue.ROB_head = cpu->ROB_queue.ROB_tail = 0;
+    } else {
+        cpu->ROB_queue.ROB_tail = (cpu->ROB_queue.ROB_tail + 1) % cpu->ROB_queue.capacity;
+    }
+    cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_tail] = cpu->rob_entry;
+}
+
+ROB_Entries dequeue(APEX_CPU *cpu) {
+    if(isFull(cpu)) {
+        printf("ROB Queue is full.");
+    }
+
+    ROB_Entries rob_entry = cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head];
+    if(cpu->ROB_queue.ROB_head == cpu->ROB_queue.ROB_tail) {
+        cpu->ROB_queue.ROB_head = -1;
+        cpu->ROB_queue.ROB_tail = -1;
+    } else {
+        cpu->ROB_queue.ROB_head = (cpu->ROB_queue.ROB_head + 1) % cpu->ROB_queue.capacity;
+    }
+    return rob_entry;
+}
+
 static void rename_rd(APEX_CPU *cpu) {
     int length = cpu->physical_queue_length;
     for (int i = 0; i < length; i++) {
@@ -646,7 +682,7 @@ static void rename_rs2(APEX_CPU *cpu) {
 }
 
 static void iq_entry_pd_ps1_ps2(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -687,7 +723,7 @@ static void iq_entry_pd_ps1_ps2(APEX_CPU *cpu) {
 }
 
 static void iq_entry_pd_ps1(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -713,7 +749,7 @@ static void iq_entry_pd_ps1(APEX_CPU *cpu) {
 }
 
 static void iq_entry_ps1_ps2(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -752,7 +788,7 @@ static void iq_entry_ps1_ps2(APEX_CPU *cpu) {
 }
 
 static void iq_entry_ps1(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -777,7 +813,7 @@ static void iq_entry_ps1(APEX_CPU *cpu) {
 }
 
 static void iq_entry_pd(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -788,13 +824,118 @@ static void iq_entry_pd(APEX_CPU *cpu) {
         }
 }
 
+static void initialize_rob_entry(APEX_CPU *cpu) {
+    if(!isFull(cpu)) {
+        cpu->rob_entry.entry_bit = 1;
+        cpu->rob_entry.dest_arch_register = cpu->dispatch.rd;
+        cpu->rob_entry.dest_phsyical_register = cpu->dispatch.pd;
+        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.memory_error_code = 0;
+        cpu->rob_entry.pc_value = cpu->dispatch.pc;
+        cpu->rob_entry.opcode = cpu->dispatch.opcode;
+    }
+}
+
+static void do_commit(Register_Rename physical_entry, int dest_address, APEX_CPU *cpu) {
+    /* Write result to register file based on instruction type */
+        switch (cpu->writeback.opcode)
+        {
+            case OPCODE_ADD:
+            case OPCODE_SUB:
+            case OPCODE_MUL:
+            case OPCODE_AND:
+            case OPCODE_OR:
+            case OPCODE_XOR:
+            case OPCODE_DIV:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_ADDL:
+            case OPCODE_SUBL:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_LOAD:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_MOVC: 
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_LOADP:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                cpu->regs[cpu->writeback.rs1] = cpu->writeback.updated_register_src1;
+                printf("src1 %d \n",cpu->regs[cpu->writeback.rs1]);
+                break;
+            }
+
+            case OPCODE_NOP:
+            {
+                break;
+            }
+
+            case OPCODE_STORE:
+            {
+                printf("MEM[%d] : %d \n", cpu->writeback.memory_address, cpu->writeback.rs1_value);
+                break;
+            }
+
+            case OPCODE_STOREP:
+            {
+                cpu->regs[cpu->writeback.rs2] = cpu->writeback.updated_register_src1;
+                printf("MEM[%d] : %d \n", cpu->writeback.memory_address, cpu->writeback.rs1_value);
+                break;
+            }
+
+            case OPCODE_CMP:
+            {
+                break;
+            }
+
+            case OPCODE_CML:
+            {
+                break;
+            }
+
+            case OPCODE_JALR:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+        }
+}
+
+static void APEX_ROB(APEX_CPU *cpu) {
+    for(int i = 0; i < 24; i++) {
+        if(cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register) {
+            if(cpu->physical_register[cpu->physical_queue[i]].allocated == 1) {
+                ROB_Entries current_entry = dequeue(cpu);
+                do_commit(cpu->physical_register[cpu->physical_queue[i]], cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_arch_register ,
+                cpu);
+                cpu->rename_table[cpu->physical_queue[i]] = -1;
+                break;
+            }
+        }
+    }
+}
+
 /*
  * Dispatch Stage of APEX Pipeline
  *
  */
 static void
 APEX_dispatch(APEX_CPU *cpu) {
-    if(cpu->dispatch.has_insn) {
+    if(cpu->dispatch.has_insn && isFull(cpu)) {
         switch (cpu->decode.opcode)
         {
             case OPCODE_ADD:
@@ -806,6 +947,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_DIV:
             {
                 iq_entry_pd_ps1_ps2(cpu);
+                initialize_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -820,6 +962,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 iq_entry_pd_ps1(cpu);
+                initialize_rob_entry(cpu);
 
                 // update_rs1_with_forwarded_value(cpu);
                 // printf("rs1 %d", cpu->decode.rs1_value);
@@ -832,6 +975,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 iq_entry_pd_ps1(cpu);
+                initialize_rob_entry(cpu);
 
                 // update_rs1_with_forwarded_value(cpu);
                 // cpu->is_data_forwarded = 0;
@@ -846,6 +990,7 @@ APEX_dispatch(APEX_CPU *cpu) {
                 /* MOVC doesn't have register operands */
                 // cpu->scoreBoarding[cpu->decode.rd] = 1;
                 iq_entry_pd(cpu);
+                initialize_rob_entry(cpu);
                 break;
             }
 
@@ -858,6 +1003,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_STOREP:
             {
                 iq_entry_ps1_ps2(cpu);
+                initialize_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -871,6 +1017,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_CMP:
             {
                 iq_entry_ps1_ps2(cpu);
+                initialize_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -883,6 +1030,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_JUMP:
             {
                 iq_entry_ps1(cpu);
+                initialize_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
 
                 // update_rs1_with_forwarded_value(cpu);
@@ -895,6 +1043,16 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_BP:
             case OPCODE_BNP:
             {
+                for(int i = 0; i < 16; i++) {
+                    if(cpu->iq_entries[i].allocated == 0) {
+                        cpu->iq_entries[i].allocated = 1;
+                        cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+                        cpu->iq_entries[i].dest = cpu->dispatch.pd;
+                        cpu->iq_entries[i].src1_valid_bit = 1;
+                        cpu->iq_entries[i].src2_valid_bit = 1;
+                    }
+                }
+                initialize_rob_entry(cpu);
                 break;
             }
         }
@@ -1899,6 +2057,11 @@ APEX_cpu_init(const char *filename)
 
     cpu->counter = 0;
     cpu->index = 0;
+
+    cpu->ROB_queue.ROB_head = -1;
+    cpu->ROB_queue.ROB_tail = -1;
+    cpu->ROB_queue.capacity = (int*)malloc(32 * sizeof(int));
+
     /* To start fetch stage */
     cpu->fetch.has_insn = TRUE;
     cpu->free_list = 24;
