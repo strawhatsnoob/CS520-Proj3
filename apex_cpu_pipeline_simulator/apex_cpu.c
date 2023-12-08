@@ -1117,6 +1117,27 @@ static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
     return entry;
 }
 
+static void
+APEX_LSQ(APEX_CPU *cpu)
+{
+    LSQ_enqueue(cpu);
+
+    //CHECKING CONDITION 1
+
+    if(cpu->entry.validBitMemoryAddress == 0 && 
+    cpu->entry.isLoadStore != NULL && 
+    cpu->entry.destRegAddressForLoad != NULL && 
+    cpu->entry.memoryAddress != NULL && 
+    cpu->entry.srcDataValidBit != NULL && 
+    cpu->entry.srcTag != NULL &&
+    cpu->entry.lsqEntryEstablished != NULL){
+        //checking contition 2
+
+
+    
+    }
+}
+
 
 /*
  * Decode Stage of APEX Pipeline
