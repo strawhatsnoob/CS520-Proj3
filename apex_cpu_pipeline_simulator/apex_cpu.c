@@ -796,7 +796,7 @@ static void iq_entry_pd(APEX_CPU *cpu) {
  */
 static void
 APEX_dispatch(APEX_CPU *cpu) {
-    if(cpu->dispatch.has_insn) {
+    if(cpu->dispatch.has_insn && isLSQFull(cpu)) {
         switch (cpu->decode.opcode)
         {
             case OPCODE_ADD:
@@ -834,6 +834,64 @@ APEX_dispatch(APEX_CPU *cpu) {
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 iq_entry_pd_ps1(cpu);
+                iq_entry_pd_ps1(cpu);
+                cpu->entry.lsqEntryEstablished = 1;
+                    for(int i = 0; i < 16; i++) {
+                    if(cpu->iq_entries[i].allocated == 0) {
+                        cpu->iq_entries[i].allocated = 1;
+                        cpu->iq_entries[i].opcode = 0;
+
+                        cpu->iq_entries[i].dest = 0;
+                        cpu->iq_entries[i].src1_valid_bit = 1;
+                        
+                        cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                        if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                        cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                            cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
+                        } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                            cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                            cpu->data_forward[0].is_allocated = 0;
+                        } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                            cpu->iq_entries[i].src1_value = cpu->data_forward[1].data;
+                            cpu->data_forward[1].is_allocated = 0;
+                        }
+
+                        cpu->iq_entries[i].src2_tag = cpu->dispatch.ps2;
+                        if(cpu->physical_register[cpu->dispatch.ps2].allocated == 1 && 
+                        cpu->physical_register[cpu->dispatch.ps2].valid_bit == 1) {
+                            cpu->iq_entries[i].src2_valid_bit = 1;
+                            cpu->iq_entries[i].src2_value = cpu->physical_register[cpu->dispatch.ps2].data;
+                        } else if(cpu->data_forward[0].physical_address == cpu->decode.ps2) {
+                            cpu->iq_entries[i].src2_valid_bit = 1;
+                            cpu->iq_entries[i].src2_value = cpu->data_forward[0].data;
+                            cpu->data_forward[0].is_allocated = 0;
+                        } else if(cpu->data_forward[1].physical_address == cpu->decode.ps2) {
+                            cpu->iq_entries[i].src2_valid_bit = 1;
+                            cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                            cpu->data_forward[1].is_allocated = 0;
+                        }
+                        }
+                    }
+
+                    if(cpu->physical_register[cpu->dispatch.pd].allocated == 1 && 
+                            cpu->physical_register[cpu->dispatch.pd].valid_bit == 1) {
+                            cpu->entry.srcDataValidBit = 0;
+                            cpu->entry.destRegAddressForLoad = cpu->physical_register[cpu->dispatch.pd].data;
+                        } else if(cpu->data_forward[0].physical_address == cpu->decode.pd) {
+                            cpu->entry.srcDataValidBit = 0;
+                            cpu->entry.destRegAddressForLoad = cpu->data_forward[0].data;
+                            cpu->data_forward[0].is_allocated = 0;
+                        } else if(cpu->data_forward[1].physical_address == cpu->decode.pd) {
+                            cpu->entry.srcDataValidBit = 0;
+                            cpu->entry.destRegAddressForLoad = cpu->data_forward[1].data;
+                            cpu->data_forward[1].is_allocated = 0;
+                    }
+
+                    cpu->entry.isLoadStore = 1;
+                    cpu->entry.validBitMemoryAddress = 1;
+
+                    fetchLSQEntry(cpu);
+                    LSQEnqueue(cpu);
 
                 // update_rs1_with_forwarded_value(cpu);
                 // cpu->is_data_forwarded = 0;
@@ -860,6 +918,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_STOREP:
             {
                 iq_entry_ps1_ps2(cpu);
+                iq_entry_ps1_ps2(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -867,6 +926,67 @@ APEX_dispatch(APEX_CPU *cpu) {
                 // cpu->is_data_forwarded = 0;
                 // cpu->scoreBoarding[cpu->decode.rs1] = 1;
                 // cpu->scoreBoarding[cpu->decode.rs2] = 1;
+                cpu->entry.lsqEntryEstablished = 1;
+                cpu->entry.isLoadStore = 0;
+                cpu->entry.validBitMemoryAddress = 1;
+
+                    fetchLSQEntry(cpu);
+
+                if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                    cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                    cpu->entry.srcDataValidBit = 1;
+                    cpu->entry.srcTag = cpu->physical_register[cpu->dispatch.ps1].data;
+                } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                    cpu->entry.srcDataValidBit = 1;
+                    cpu->entry.srcTag = cpu->data_forward[0].data;
+                    cpu->data_forward[0].is_allocated = 0;
+                } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                    cpu->entry.srcDataValidBit = 1;
+                    cpu->entry.srcTag = cpu->data_forward[1].data;
+                    cpu->data_forward[1].is_allocated = 0;
+                }
+
+                for(int i = 0; i < 16; i++) {
+                    if(cpu->iq_entries[i].allocated == 0) {
+                        cpu->iq_entries[i].allocated = 1;
+                        cpu->iq_entries[i].opcode = 0;
+
+                        cpu->iq_entries[i].dest = 0;
+                        
+                        cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                        if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+                        cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+                            cpu->iq_entries[i].src1_valid_bit = 1;
+                            cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
+                        } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+                            cpu->iq_entries[i].src1_valid_bit = 1;
+                            cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                            cpu->data_forward[0].is_allocated = 0;
+                        } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+                            cpu->iq_entries[i].src1_valid_bit = 1;
+                            cpu->iq_entries[i].src1_value = cpu->data_forward[1].data;
+                            cpu->data_forward[1].is_allocated = 0;
+                        }
+
+                        cpu->iq_entries[i].src2_tag = cpu->dispatch.ps2;
+                        if(cpu->physical_register[cpu->dispatch.ps2].allocated == 1 && 
+                        cpu->physical_register[cpu->dispatch.ps2].valid_bit == 1) {
+                            cpu->iq_entries[i].src2_valid_bit = 1;
+                            cpu->iq_entries[i].src2_value = cpu->physical_register[cpu->dispatch.ps2].data;
+                        } else if(cpu->data_forward[0].physical_address == cpu->decode.ps2) {
+                            cpu->iq_entries[i].src2_valid_bit = 1;
+                            cpu->iq_entries[i].src2_value = cpu->data_forward[0].data;
+                            cpu->data_forward[0].is_allocated = 0;
+                        } else if(cpu->data_forward[1].physical_address == cpu->decode.ps2) {
+                            cpu->iq_entries[i].src2_valid_bit = 1;
+                            cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                            cpu->data_forward[1].is_allocated = 0;
+                        }
+                        }
+                    }
+
+                    LSQEnqueue(cpu);
+
                 break;   
             }
 
@@ -915,12 +1035,10 @@ APEX_dispatch(APEX_CPU *cpu) {
 
 static void fetch_LSQ_Entry(APEX_CPU *cpu){
 
-    cpu->entry.lsqEntryEstablished = 1;
+        cpu->entry.lsqEntryEstablished = 1;
+        cpu->entry.srcDataValidBit = 1;
 
-    cpu->entry.validBitMemoryAddress = 0;
 
-    if(cpu->dispatch.opcode == 8 || cpu->dispatch.opcode == 15){
-        cpu->entry.isLoadStore = 1;
         if(cpu->physical_register[cpu->dispatch.pd].allocated == 1 && 
             cpu->physical_register[cpu->dispatch.pd].valid_bit == 1) {
             cpu->entry.srcDataValidBit = 0;
@@ -934,9 +1052,6 @@ static void fetch_LSQ_Entry(APEX_CPU *cpu){
             cpu->entry.destRegAddressForLoad = cpu->data_forward[1].data;
             cpu->data_forward[1].is_allocated = 0;
         }
-    }
-    else if(cpu->dispatch.opcode == 9 || cpu->dispatch.opcode == 17){
-        cpu->entry.isLoadStore = 0;
         
         
         if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
@@ -952,11 +1067,6 @@ static void fetch_LSQ_Entry(APEX_CPU *cpu){
             cpu->entry.srcTag = cpu->data_forward[1].data;
             cpu->data_forward[1].is_allocated = 0;
         }
-        
-    }
-
-    cpu->entry.validBitMemoryAddress = 0;
-
 }
 
 int isLSQFull(APEX_CPU *cpu) {
