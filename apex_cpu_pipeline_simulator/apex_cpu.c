@@ -912,6 +912,91 @@ APEX_dispatch(APEX_CPU *cpu) {
     }
 }
 
+
+static void fetch_LSQ_Entry(APEX_CPU *cpu){
+
+    cpu->entry.lsqEntryEstablished = 1;
+
+    cpu->entry.validBitMemoryAddress = 0;
+
+    if(cpu->dispatch.opcode == 8 || cpu->dispatch.opcode == 15){
+        cpu->entry.isLoadStore = 1;
+        if(cpu->physical_register[cpu->dispatch.pd].allocated == 1 && 
+            cpu->physical_register[cpu->dispatch.pd].valid_bit == 1) {
+            cpu->entry.srcDataValidBit = 0;
+            cpu->entry.destRegAddressForLoad = cpu->physical_register[cpu->dispatch.pd].data;
+        } else if(cpu->data_forward[0].physical_address == cpu->decode.pd) {
+            cpu->entry.srcDataValidBit = 0;
+            cpu->entry.destRegAddressForLoad = cpu->data_forward[0].data;
+            cpu->data_forward[0].is_allocated = 0;
+        } else if(cpu->data_forward[1].physical_address == cpu->decode.pd) {
+            cpu->entry.srcDataValidBit = 0;
+            cpu->entry.destRegAddressForLoad = cpu->data_forward[1].data;
+            cpu->data_forward[1].is_allocated = 0;
+        }
+    }
+    else if(cpu->dispatch.opcode == 9 || cpu->dispatch.opcode == 17){
+        cpu->entry.isLoadStore = 0;
+        
+        
+        if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
+            cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
+            cpu->entry.srcDataValidBit = 1;
+            cpu->entry.srcTag = cpu->physical_register[cpu->dispatch.ps1].data;
+        } else if(cpu->data_forward[0].physical_address == cpu->decode.ps1) {
+            cpu->entry.srcDataValidBit = 1;
+            cpu->entry.srcTag = cpu->data_forward[0].data;
+            cpu->data_forward[0].is_allocated = 0;
+        } else if(cpu->data_forward[1].physical_address == cpu->decode.ps1) {
+            cpu->entry.srcDataValidBit = 1;
+            cpu->entry.srcTag = cpu->data_forward[1].data;
+            cpu->data_forward[1].is_allocated = 0;
+        }
+        
+    }
+
+    cpu->entry.validBitMemoryAddress = 0;
+
+}
+
+int isLSQFull(APEX_CPU *cpu) {
+    return (cpu->lsq.numberOfEntries < 16);
+}
+
+int isEmpty(APEX_CPU *cpu) {
+    return (cpu->lsq.numberOfEntries == 0);
+}
+
+static void LSQ_enqueue(APEX_CPU *cpu) {
+    while(isFull(cpu->lsq)) {
+        //spin
+    }
+
+    if (isEmpty(cpu)) {
+        cpu->lsq.front = 0; // Set front to 0 for the first element
+    }
+
+    cpu->lsq.rear = (cpu->lsq.rear + 1) % 16; // Circular increment
+    cpu->lsq.entries[cpu->lsq.rear] = cpu->entry;
+    cpu->lsq.numberOfEntries++;
+
+}
+
+static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
+
+    LSQEntry entry;
+    if(isEmpty(cpu)){
+        return entry;
+    }
+
+    entry = cpu->lsq.entries[cpu->lsq.front];
+    cpu->lsq.front = (cpu->lsq.front + 1) % 16; // Circular increment
+    cpu->lsq.numberOfEntries--;
+
+    return entry;
+}
+
+
 /*
  * Decode Stage of APEX Pipeline
  *
@@ -1904,6 +1989,11 @@ APEX_cpu_init(const char *filename)
     /* To start fetch stage */
     cpu->fetch.has_insn = TRUE;
     cpu->free_list = 24;
+
+    cpu->lsq.entries = (int *)malloc(16 * sizeof(int));
+    cpu->lsq.front = -1;
+    cpu->lsq.rear = -1;
+    cpu->lsq.numberOfEntries = 0;
     return cpu;
 }
 
