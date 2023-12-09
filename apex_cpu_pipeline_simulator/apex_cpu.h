@@ -117,6 +117,7 @@ typedef struct LSQEntry{
     int destRegAddressForLoad;               
     int srcDataValidBit;
     int srcTag;  
+    int entryIndex;
 } LSQEntry;
 
 typedef struct LSQ {

@@ -658,7 +658,7 @@ static void initialize_load_rob_entry(APEX_CPU *cpu) {
         cpu->rob_entry.entry_bit = 1;
         cpu->rob_entry.dest_arch_register = cpu->dispatch.rd;
         cpu->rob_entry.dest_phsyical_register = cpu->dispatch.pd;
-        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.lsq_index = cpu->entry.entryIndex;
         cpu->rob_entry.memory_error_code = 0;
         cpu->rob_entry.pc_value = cpu->dispatch.pc;
         cpu->rob_entry.opcode = cpu->dispatch.opcode;
@@ -669,7 +669,7 @@ static void initialize_load_rob_entry(APEX_CPU *cpu) {
 static void initialize_store_rob_entry(APEX_CPU *cpu) {
     if(!isFull(cpu)) {
         cpu->rob_entry.entry_bit = 1;
-        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.lsq_index = cpu->entry.entryIndex;
         cpu->rob_entry.pc_value = cpu->dispatch.pc;
         cpu->rob_entry.opcode = cpu->dispatch.opcode;
     }
@@ -829,10 +829,6 @@ static void LSQ_enqueue(APEX_CPU *cpu) {
 
 static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
 
-    // if(isLSQEmpty(cpu)){
-    //     return;
-    // }
-
     LSQEntry entry1 = cpu->lsq.entries[cpu->lsq.front];
     cpu->lsq.front = (cpu->lsq.front + 1) % 16; // Circular increment
     cpu->lsq.numberOfEntries--;
@@ -840,11 +836,19 @@ static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
     return entry1;
 }
 
+static LSQEntry getEntryAtIndex(APEX_CPU *cpu, int index) {
+
+    return cpu->lsq.entries[(cpu->lsq.front + index) % 16];
+}
+
+
+
 static void LSQEntryStore(APEX_CPU *cpu){
 
     cpu->entry.lsqEntryEstablished = 1;
                 cpu->entry.isLoadStore = 0;
                 cpu->entry.validBitMemoryAddress = 1;
+                cpu->entry.entryIndex = cpu->lsq.numberOfEntries+1;
 
                 fetch_LSQ_Entry(cpu);
 
@@ -908,6 +912,7 @@ static void LSQEntryLoad(APEX_CPU *cpu){
 
     iq_entry_pd_ps1(cpu);
                 cpu->entry.lsqEntryEstablished = 1;
+                cpu->entry.entryIndex = cpu->lsq.numberOfEntries+1;
                     for(int i = 0; i < 24; i++) {
                     if(cpu->iq_entries[i].allocated == 0) {
                         cpu->iq_entries[i].allocated = 1;
@@ -1012,13 +1017,14 @@ APEX_dispatch(APEX_CPU *cpu) {
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 iq_entry_pd_ps1(cpu);
+                LSQEntryLoad(cpu);
                 initialize_load_rob_entry(cpu);
                 // update_rs1_with_forwarded_value(cpu);
                 // cpu->is_data_forwarded = 0;
                 // cpu->scoreBoarding[cpu->decode.rd] = 1;
                 // cpu->scoreBoarding[cpu->decode.rs1] = 1;
 
-                LSQEntryLoad(cpu);
+                
                 break;
             }
 
@@ -1041,6 +1047,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_STOREP:
             {
                 iq_entry_ps1_ps2(cpu);
+                LSQEntryStore(cpu);
                 initialize_store_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
@@ -1050,7 +1057,7 @@ APEX_dispatch(APEX_CPU *cpu) {
                 // cpu->scoreBoarding[cpu->decode.rs1] = 1;
                 // cpu->scoreBoarding[cpu->decode.rs2] = 1;
 
-                LSQEntryStore(cpu);
+                
                 
 
                 break;   
@@ -1119,16 +1126,26 @@ APEX_LSQ(APEX_CPU *cpu)
 
     //CHECKING CONDITION 1
 
-    if(cpu->entry.validBitMemoryAddress == 0
-    // !(cpu->entry.isLoadStore == NULL) && 
-    // !(cpu->entry.destRegAddressForLoad == NULL) && 
-    // !(cpu->entry.memoryAddress == NULL) && 
-    // cpu->entry.srcDataValidBit != NULL && 
-    // cpu->entry.srcTag != NULL &&
-    // cpu->entry.lsqEntryEstablished != NULL
-    ){
+    if(cpu->entry.validBitMemoryAddress == 0){
         //checking contition 2
 
+        if(cpu->memory_address != -1){
+             cpu->entry.memoryAddress = cpu->memory_address;
+             cpu->memory_address = -1;
+        }
+
+        
+
+        if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].lsq_index == cpu->lsq.entries[cpu->lsq.front].entryIndex){
+
+            if(isLSQEmpty(cpu)){
+                return;
+            }
+
+            LSQEntry checkedEntry = LSQ_dequeue(cpu);
+
+        }
+       
 
     
     }
