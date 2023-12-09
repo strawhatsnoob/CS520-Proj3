@@ -53,7 +53,8 @@ typedef struct CPU_Stage
     int pd;
     int ps1;
     int ps2;
-
+    int is_bq;
+    int is_iq;
 } CPU_Stage;
 
 typedef struct BTB {
@@ -89,7 +90,17 @@ typedef struct IQ_Entries {
     int src2_tag;
     int src2_value;
     int dest;
+    int pc_address;
+    int is_used;
 }IQ_Entries;
+
+typedef struct BQ_Entry {
+    int pc_address;
+    int branch_prediction;
+    int target_address;
+    int is_used;
+    int index;
+} BQ_Entry;
 
 /* Model of APEX CPU */
 typedef struct APEX_CPU
@@ -131,16 +142,19 @@ typedef struct APEX_CPU
     Data_Forward data_forward[2];
     IQ_Entries iq_entries[16];
 
-    // Add two queues for IQ and BQ
-    APEX_Instruction iq[MAX_IQ_SIZE];
-    APEX_Instruction bq[MAX_BQ_SIZE];
-    
-    int iq_size; // Number of instructions in IQ
-    int bq_size; // Number of instructions in BQ
+    BQ_Entry bq[MAX_BQ_SIZE];
+    int bq_size;
+    int bq_index;
+    IQ_Entries iq[MAX_IQ_SIZE];
+    int iq_size;
+    int iq_index;
 } APEX_CPU;
+
 
 APEX_Instruction *create_code_memory(const char *filename, int *size);
 APEX_CPU *APEX_cpu_init(const char *filename);
 void APEX_cpu_run(APEX_CPU *cpu);
 void APEX_cpu_stop(APEX_CPU *cpu);
+void init_bq(APEX_CPU *cpu);
+void init_iq(APEX_CPU *cpu);
 #endif

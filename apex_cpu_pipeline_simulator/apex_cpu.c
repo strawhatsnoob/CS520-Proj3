@@ -349,6 +349,16 @@ APEX_fetch(APEX_CPU *cpu)
             cpu->fetch.is_btb_hit = 0;
         }
 
+        // Check for BQ instructions and set is_bq to 1 or is_iq to 1
+        if (cpu->fetch.has_insn) {
+            if (cpu->fetch.opcode == OPCODE_BZ || cpu->fetch.opcode == OPCODE_BNZ || cpu->fetch.opcode == OPCODE_BN || cpu->fetch.opcode == OPCODE_BNN || cpu->fetch.opcode == OPCODE_BP || cpu->fetch.opcode == OPCODE_BNP || cpu->fetch.opcode == OPCODE_JUMP || cpu->fetch.opcode == OPCODE_JALR) {
+                cpu->fetch.is_bq = 1;
+            }
+            else {
+                cpu->fetch.is_iq = 1;
+            }
+        }
+        
         /* Copy data from fetch latch to decode latch*/
         cpu->decode = cpu->fetch;
         printf("fetch %d", cpu->decode.has_insn);
@@ -898,6 +908,12 @@ APEX_dispatch(APEX_CPU *cpu) {
                 break;
             }
         }
+        if (cpu->bq_size > 0) {
+            int index = cpu->bq[0].index;
+            cpu->bq[index].is_used = 0;
+            cpu->bq_size--;
+            cpu->fetch.pc = cpu->bq[index].target_address;
+        }
 
         /* Copy data from decode latch to execute latch*/
         cpu->execute = cpu->dispatch;
@@ -1064,10 +1080,37 @@ APEX_decode(APEX_CPU *cpu)
         cpu->dispatch = cpu->decode;
         cpu->decode.has_insn = FALSE;
 
+        if (cpu->decode.is_bq) {
+            cpu->bq[cpu->bq_index].pc_address = cpu->decode.pc;
+            cpu->bq[cpu->bq_index].branch_prediction = cpu->decode.result_buffer;
+            cpu->bq[cpu->bq_index].target_address = cpu->decode.rs1_value;
+            cpu->bq[cpu->bq_index].is_used = 1;
+            cpu->bq[cpu->bq_index].index = cpu->bq_index;
+            cpu->bq_index = (cpu->bq_index + 1) % MAX_BQ_SIZE;
+            cpu->bq_size++;
+        }
+        if (cpu->decode.is_iq) {
+            cpu->iq[cpu->iq_index].pc_address = cpu->decode.pc;
+            cpu->iq[cpu->iq_index].opcode = cpu->decode.opcode;
+            cpu->iq[cpu->iq_index].literal = cpu->decode.imm;
+            cpu->iq[cpu->iq_index].src1_valid_bit = !cpu->decode.is_empty_rs1;
+            cpu->iq[cpu->iq_index].src1_tag = cpu->decode.rs1;
+            cpu->iq[cpu->iq_index].src1_value = cpu->decode.rs1_value;
+            cpu->iq[cpu->iq_index].src2_valid_bit = !cpu->decode.is_empty_rs2;
+            cpu->iq[cpu->iq_index].src2_tag = cpu->decode.rs2;
+            cpu->iq[cpu->iq_index].src2_value = cpu->decode.rs2_value;
+            cpu->iq[cpu->iq_index].dest = cpu->decode.rd;
+            cpu->iq[cpu->iq_index].allocated = 1;
+            cpu->iq_index = (cpu->iq_index + 1) % MAX_IQ_SIZE;
+            cpu->iq_size++;
+        }
+
+
         if (ENABLE_DEBUG_MESSAGES)
         {
             display_stage_content("Decode/RF", &cpu->decode);
         }
+
     }
 }
 
@@ -1117,6 +1160,7 @@ static void do_branching(APEX_CPU *cpu) {
 //         cpu->scoreBoarding[cpu->execute.rs2] = 1;
 //     }
 // }
+
 
 
 /*
@@ -1814,6 +1858,18 @@ APEX_writeback(APEX_CPU *cpu)
     return 0;
 }
 
+void init_bq(APEX_CPU *cpu) {
+    for (int i = 0; i < MAX_BQ_SIZE; i++) {
+        cpu->bq[i].is_used = 0;
+    }
+    cpu->bq_size = 0;
+}
+void init_iq(APEX_CPU *cpu) {
+    for (int i = 0; i < MAX_IQ_SIZE; i++) {
+        cpu->iq[i].is_used = 0;
+    }
+    cpu->iq_size = 0;
+}
 /*
  * This function creates and initializes APEX cpu.
  *
@@ -1841,10 +1897,6 @@ APEX_cpu_init(const char *filename)
     memset(cpu->regs, 0, sizeof(int) * REG_FILE_SIZE);
     memset(cpu->data_memory, 0, sizeof(int) * DATA_MEMORY_SIZE);
     cpu->single_step = ENABLE_SINGLE_STEP;
-
-    /* Initialize IQ and BQ size */
-    cpu -> iq_size = 0;
-    cpu -> bq_size = 0;
 
     /* Parse input file and create code memory */
     cpu->code_memory = create_code_memory(filename, &cpu->code_memory_size);
@@ -1891,16 +1943,13 @@ APEX_cpu_init(const char *filename)
     }
     cpu->physical_queue_length = physical_queue_length;
 
-    cpu->bq_size = 4;
-    cpu->bq_head = 0;
-    cpu->bq_tail = 0;
 
-    cpu->iq_size = 16;
-    cpu->iq_head = 0;
-    cpu->iq_tail = 0;
+    cpu->bq_size = 0;
+    cpu->bq_index = 0;
+    cpu->iq_index = 0;
+    init_bq(cpu);
+    init_iq(cpu);
 
-    cpu->counter = 0;
-    cpu->index = 0;
     /* To start fetch stage */
     cpu->fetch.has_insn = TRUE;
     cpu->free_list = 24;
@@ -1960,6 +2009,10 @@ APEX_cpu_run(APEX_CPU *cpu)
                 break;
             }
         }
+        cpu->bq_index = 0;
+        cpu->bq_size = 0;
+        cpu->iq_index = 0;
+        cpu->iq_size = 0;
 
         cpu->clock++;
         cpu->counter++;
