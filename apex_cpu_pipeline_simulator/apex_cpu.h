@@ -91,6 +91,24 @@ typedef struct IQ_Entries {
     int dest;
 }IQ_Entries;
 
+typedef struct LSQEntry{
+    int lsqEntryEstablished;
+    int isLoadStore;
+    int validBitMemoryAddress;
+    unsigned int memoryAddress;
+    int destRegAddressForLoad;               
+    int srcDataValidBit;
+    int srcTag;  
+} LSQEntry;
+
+typedef struct LSQ {
+    int numberOfEntries;
+    int front;
+    int rear;
+    int sizeOfEntry;
+    LSQEntry *entries;
+} LSQ;
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -130,6 +148,8 @@ typedef struct APEX_CPU
     Register_Rename condition_code_register[16];
     Data_Forward data_forward[2];
     IQ_Entries iq_entries[16];
+    LSQ lsq;
+    LSQEntry entry;
 
     // Branch Instruction Queue (BQ)
     CPU_Stage bq[4];
