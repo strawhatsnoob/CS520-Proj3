@@ -109,6 +109,24 @@ typedef struct ROB_Queue {
     int *capacity;
 }ROB_Queue;
 
+typedef struct LSQEntry{
+    int lsqEntryEstablished;
+    int isLoadStore;
+    int validBitMemoryAddress;
+    unsigned int memoryAddress;
+    int destRegAddressForLoad;               
+    int srcDataValidBit;
+    int srcTag;  
+} LSQEntry;
+
+typedef struct LSQ {
+    int numberOfEntries;
+    int front;
+    int rear;
+    int sizeOfEntry;
+    LSQEntry *entries;
+} LSQ;
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -160,6 +178,8 @@ typedef struct APEX_CPU
     IQ_Entries iq_entries[24];
     ROB_Entries rob_entry;
     ROB_Queue ROB_queue;
+    LSQ lsq;
+    LSQEntry entry;
 
     // Branch Instruction Queue (BQ)
     CPU_Stage bq[4];
