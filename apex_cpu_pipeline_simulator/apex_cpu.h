@@ -102,6 +102,42 @@ typedef struct BQ_Entry {
     int index;
 } BQ_Entry;
 
+typedef struct ROB_Entries {
+    int entry_bit;
+    int opcode;
+    int pc_value;
+    int dest_phsyical_register;
+    int rename_table_entry;
+    int dest_arch_register;
+    int lsq_index;
+    int memory_error_code;
+}ROB_Entries;
+
+typedef struct ROB_Queue {
+    ROB_Entries rob_entries[32];
+    int ROB_head;
+    int ROB_tail;
+    int *capacity;
+}ROB_Queue;
+
+typedef struct LSQEntry{
+    int lsqEntryEstablished;
+    int isLoadStore;
+    int validBitMemoryAddress;
+    unsigned int memoryAddress;
+    int destRegAddressForLoad;               
+    int srcDataValidBit;
+    int srcTag;  
+} LSQEntry;
+
+typedef struct LSQ {
+    int numberOfEntries;
+    int front;
+    int rear;
+    int sizeOfEntry;
+    LSQEntry *entries;
+} LSQ;
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -128,20 +164,34 @@ typedef struct APEX_CPU
     int physical_queue[25];
     int physical_queue_length;
     int free_list;
+    int prev_dest;
+    int memory_address;
 
     /* Pipeline stages */
     CPU_Stage fetch;
     CPU_Stage decode;
     CPU_Stage dispatch;
+    CPU_Stage afu;
+    CPU_Stage bfu;
+    CPU_Stage mulfu;
+    CPU_Stage mau;
+    CPU_Stage intfu;
+    CPU_Stage rob;
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
+
+
     BTB branch_target_buffer[4];
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
     Data_Forward data_forward[2];
-    IQ_Entries iq_entries[16];
-
+    IQ_Entries iq_entries[24];
+    ROB_Entries rob_entry;
+    ROB_Queue ROB_queue;
+    LSQ lsq;
+    LSQEntry entry;
+    
     BQ_Entry bq[MAX_BQ_SIZE];
     int bq_size;
     int bq_index;
