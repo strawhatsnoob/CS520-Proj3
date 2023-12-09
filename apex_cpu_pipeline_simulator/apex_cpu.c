@@ -374,198 +374,48 @@ static void remove_from_btb(APEX_CPU *cpu) {
     }
 }
 
-// static void update_with_forwarded_value(APEX_CPU *cpu) {
-//     if(cpu->writeback.has_insn) {
-//                     if(strcmp(cpu->writeback.opcode_str, "LOADP") == 0) {
-//                         printf("loadedP value %d", cpu->writeback.data_forward);
-//                         if(cpu->writeback.rd == cpu->decode.rs1 && cpu->writeback.rd == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
-//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rd == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rd == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rs1 == cpu->decode.rs1 && cpu->writeback.rs1 == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
-//                             cpu->decode.rs2_value = cpu->writeback.updated_register_src1;
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rs1 == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rs1 == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->writeback.updated_register_src1;
-//                             cpu->is_data_forwarded = 1;
-//                         } else {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         }
-//                     } else if(strcmp(cpu->writeback.opcode_str, "STOREP") == 0) {
-//                         if(cpu->writeback.rs2 == cpu->decode.rs1 && cpu->writeback.rs1 == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
-//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rs2 == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rs2 == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
-//                             cpu->is_data_forwarded = 1;
-//                         } else {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         }
-//                     } else {
-//                         if(cpu->writeback.rd == cpu->decode.rs1 && cpu->writeback.rd == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
-//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rd == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->writeback.data_forward;
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                             cpu->is_data_forwarded = 1;
-//                         } else if(cpu->writeback.rd == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->writeback.data_forward;
-//                             cpu->is_data_forwarded = 1;
-//                         } else {
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         }
-//                     }
-//                 }
-//                 if(cpu->memory.has_insn) {
-//                     if(strcmp(cpu->memory.opcode_str, "LOADP") == 0) {
-//                         printf("loadedP value %d", cpu->memory.data_forward);
-//                         if(cpu->memory.rs1 == cpu->decode.rs1 && cpu->memory.rs1 == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->memory.data_forward;
-//                             cpu->decode.rs2_value = cpu->memory.data_forward;
-//                         } else if(cpu->memory.rs1 == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->memory.data_forward;
-//                             if(!cpu->is_data_forwarded)
-//                                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         } else if(cpu->memory.rs1 == cpu->decode.rs2) {
-//                             if(!cpu->is_data_forwarded)
-//                                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->memory.data_forward;
-//                         } else if(!cpu->is_data_forwarded){
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         }
-//                     } else if(strcmp(cpu->memory.opcode_str, "STOREP") == 0) {
-//                         if(cpu->memory.rs2 == cpu->decode.rs1 && cpu->memory.rs1 == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->memory.data_forward;
-//                             cpu->decode.rs2_value = cpu->memory.data_forward;
-//                         } else if(cpu->memory.rs2 == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->memory.data_forward;
-//                             if(!cpu->is_data_forwarded)
-//                                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         } else if(cpu->memory.rs2 == cpu->decode.rs2) {
-//                             if(!cpu->is_data_forwarded)
-//                                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->memory.data_forward;
-//                         } else if(!cpu->is_data_forwarded){
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         }
-//                     } else {
-//                         if(cpu->memory.rd == cpu->decode.rs1 && cpu->memory.rd == cpu->decode.rs2) {
-//                             cpu->decode.rs1_value = cpu->memory.data_forward;
-//                             cpu->decode.rs2_value = cpu->memory.data_forward;
-//                         } else if(cpu->memory.rd == cpu->decode.rs1) {
-//                             cpu->decode.rs1_value = cpu->memory.data_forward;
-//                             if(!cpu->is_data_forwarded)
-//                                 cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         } else if(cpu->memory.rd == cpu->decode.rs2) {
-//                             if(!cpu->is_data_forwarded)
-//                                 cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->memory.data_forward;
-//                         } else if(!cpu->is_data_forwarded){
-//                             cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//                             cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
-//                         }
-//                     }
-//                 }
-// }
+int isEmpty(APEX_CPU *cpu) {
+    return (cpu->ROB_queue.ROB_head == -1);
+}
 
+int isFull(APEX_CPU *cpu) {
+    return ((cpu->ROB_queue.ROB_tail + 1) % 32 == cpu->ROB_queue.ROB_head);
+}
 
-// static void update_rs1_with_forwarded_value(APEX_CPU *cpu) {
-//   if (cpu->writeback.has_insn &&
-//       (strcmp(cpu->writeback.opcode_str, "BZ") != 0 &&
-//        strcmp(cpu->writeback.opcode_str, "BNZ") != 0 &&
-//        strcmp(cpu->writeback.opcode_str, "BP") != 0 &&
-//        strcmp(cpu->writeback.opcode_str, "BNP") != 0 &&
-//        strcmp(cpu->writeback.opcode_str, "BN") != 0 &&
-//        strcmp(cpu->writeback.opcode_str, "BNN") != 0)) {
-//     printf("rs1 %d", cpu->decode.rs1_value);
-//     if (strcmp(cpu->writeback.opcode_str, "LOADP") == 0) {
-//       printf("loadedP value %d", cpu->writeback.data_forward);
-//       if (cpu->writeback.rd == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->writeback.data_forward;
-//         cpu->is_data_forwarded = 1;
-//       } else if (cpu->writeback.rs1 == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->writeback.updated_register_src1;
-//         cpu->is_data_forwarded = 1;
-//       } else {
-//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//       }
-//     } else if (strcmp(cpu->writeback.opcode_str, "STOREP") == 0) {
-//       if (cpu->writeback.rs2 == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->writeback.data_forward;
-//       } else {
-//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//       }
-//     } else {
-//       if (cpu->writeback.rd == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->writeback.data_forward;
-//         cpu->is_data_forwarded = 1;
-//       } else {
-//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//       }
-//       printf("rs1 %d", cpu->decode.rs1_value);
-//     }
-//   }
-//   if (cpu->memory.has_insn && (strcmp(cpu->memory.opcode_str, "BZ") != 0 &&
-//                                strcmp(cpu->memory.opcode_str, "BNZ") != 0 &&
-//                                strcmp(cpu->memory.opcode_str, "BP") != 0 &&
-//                                strcmp(cpu->memory.opcode_str, "BNP") != 0 &&
-//                                strcmp(cpu->memory.opcode_str, "BN") != 0 &&
-//                                strcmp(cpu->memory.opcode_str, "BNN") != 0)) {
-//     if (strcmp(cpu->memory.opcode_str, "LOADP") == 0) {
-//       printf("loadedP value %d", cpu->memory.data_forward);
-//       if (cpu->memory.rs1 == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->memory.data_forward;
-//       } else {
-//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//       }
-//     } else if (strcmp(cpu->memory.opcode_str, "STOREP") == 0) {
-//       if (cpu->memory.rs2 == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->memory.data_forward;
-//       } else {
-//         cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//       }
-//     } else {
-//       if (cpu->memory.rd == cpu->decode.rs1) {
-//         cpu->decode.rs1_value = cpu->memory.data_forward;
-//       } else {
-//         if (!cpu->is_data_forwarded)
-//           cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-//       }
-//     }
-//   }
-// }
+void enqueue(APEX_CPU *cpu) {
+    if(isFull(cpu)) {
+        printf("ROB Queue is full.");
+        return;
+    }
+    if(isEmpty(cpu)) {
+        cpu->ROB_queue.ROB_head = cpu->ROB_queue.ROB_tail = 0;
+    } else {
+        cpu->ROB_queue.ROB_tail = (cpu->ROB_queue.ROB_tail + 1) % 32;
+    }
+    cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_tail] = cpu->rob_entry;
+}
+
+ROB_Entries dequeue(APEX_CPU *cpu) {
+    if(isFull(cpu)) {
+        printf("ROB Queue is full.");
+    }
+
+    ROB_Entries rob_entry = cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head];
+    if(cpu->ROB_queue.ROB_head == cpu->ROB_queue.ROB_tail) {
+        cpu->ROB_queue.ROB_head = -1;
+        cpu->ROB_queue.ROB_tail = -1;
+    } else {
+        cpu->ROB_queue.ROB_head = (cpu->ROB_queue.ROB_head + 1) % 32;
+    }
+    return rob_entry;
+}
 
 static void rename_rd(APEX_CPU *cpu) {
     int length = cpu->physical_queue_length;
     for (int i = 0; i < length; i++) {
+        if(cpu->rename_table[cpu->physical_queue[i]] == cpu->decode.rd) {
+            cpu->prev_dest = cpu->physical_queue[i];
+        }
         if (cpu->rename_table[cpu->physical_queue[i]] == -1) {
             cpu->rename_table[cpu->physical_queue[i]] = cpu->decode.rd;
             cpu->physical_register[cpu->physical_queue[i]].allocated = 1;
@@ -648,7 +498,7 @@ static void rename_rs2(APEX_CPU *cpu) {
 }
 
 static void iq_entry_pd_ps1_ps2(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -689,7 +539,7 @@ static void iq_entry_pd_ps1_ps2(APEX_CPU *cpu) {
 }
 
 static void iq_entry_pd_ps1(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -715,7 +565,7 @@ static void iq_entry_pd_ps1(APEX_CPU *cpu) {
 }
 
 static void iq_entry_ps1_ps2(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -754,7 +604,7 @@ static void iq_entry_ps1_ps2(APEX_CPU *cpu) {
 }
 
 static void iq_entry_ps1(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -779,7 +629,7 @@ static void iq_entry_ps1(APEX_CPU *cpu) {
 }
 
 static void iq_entry_pd(APEX_CPU *cpu) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 24; i++) {
             if(cpu->iq_entries[i].allocated == 0) {
                 cpu->iq_entries[i].allocated = 1;
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
@@ -788,6 +638,134 @@ static void iq_entry_pd(APEX_CPU *cpu) {
                 cpu->iq_entries[i].src2_valid_bit = 1;
             }
         }
+}
+
+static void initialize_R2R_rob_entry(APEX_CPU *cpu) {
+    if(!isFull(cpu)) {
+        cpu->rob_entry.entry_bit = 1;
+        cpu->rob_entry.dest_arch_register = cpu->dispatch.rd;
+        cpu->rob_entry.dest_phsyical_register = cpu->dispatch.pd;
+        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.memory_error_code = 0;
+        cpu->rob_entry.pc_value = cpu->dispatch.pc;
+        cpu->rob_entry.opcode = cpu->dispatch.opcode;
+        cpu->rob_entry.rename_table_entry = cpu->prev_dest;
+    }
+}
+
+static void initialize_load_rob_entry(APEX_CPU *cpu) {
+    if(!isFull(cpu)) {
+        cpu->rob_entry.entry_bit = 1;
+        cpu->rob_entry.dest_arch_register = cpu->dispatch.rd;
+        cpu->rob_entry.dest_phsyical_register = cpu->dispatch.pd;
+        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.memory_error_code = 0;
+        cpu->rob_entry.pc_value = cpu->dispatch.pc;
+        cpu->rob_entry.opcode = cpu->dispatch.opcode;
+        cpu->rob_entry.rename_table_entry = cpu->prev_dest;
+    }
+}
+
+static void initialize_store_rob_entry(APEX_CPU *cpu) {
+    if(!isFull(cpu)) {
+        cpu->rob_entry.entry_bit = 1;
+        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.pc_value = cpu->dispatch.pc;
+        cpu->rob_entry.opcode = cpu->dispatch.opcode;
+    }
+}
+
+static void do_commit(Register_Rename physical_entry, int dest_address, APEX_CPU *cpu) {
+    /* Write result to register file based on instruction type */
+        switch (cpu->writeback.opcode)
+        {
+            case OPCODE_ADD:
+            case OPCODE_SUB:
+            case OPCODE_MUL:
+            case OPCODE_AND:
+            case OPCODE_OR:
+            case OPCODE_XOR:
+            case OPCODE_DIV:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_ADDL:
+            case OPCODE_SUBL:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_LOAD:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_MOVC: 
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+
+            case OPCODE_LOADP:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                cpu->regs[cpu->writeback.rs1] = cpu->writeback.updated_register_src1;
+                printf("src1 %d \n",cpu->regs[cpu->writeback.rs1]);
+                break;
+            }
+
+            case OPCODE_NOP:
+            {
+                break;
+            }
+
+            case OPCODE_STORE:
+            {
+                printf("MEM[%d] : %d \n", cpu->writeback.memory_address, cpu->writeback.rs1_value);
+                break;
+            }
+
+            case OPCODE_STOREP:
+            {
+                cpu->regs[cpu->writeback.rs2] = cpu->writeback.updated_register_src1;
+                printf("MEM[%d] : %d \n", cpu->writeback.memory_address, cpu->writeback.rs1_value);
+                break;
+            }
+
+            case OPCODE_CMP:
+            {
+                break;
+            }
+
+            case OPCODE_CML:
+            {
+                break;
+            }
+
+            case OPCODE_JALR:
+            {
+                cpu->regs[dest_address] = physical_entry.data;
+                break;
+            }
+        }
+}
+
+static void APEX_ROB(APEX_CPU *cpu) {
+    for(int i = 0; i < 24; i++) {
+        if(cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register) {
+            if(cpu->physical_register[cpu->physical_queue[i]].allocated == 1) {
+                ROB_Entries current_entry = dequeue(cpu);
+                do_commit(cpu->physical_register[cpu->physical_queue[i]], cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_arch_register ,
+                cpu);
+                cpu->rename_table[cpu->physical_queue[i]] = -1;
+                break;
+            }
+        }
+    }
 }
 
 static void fetch_LSQ_Entry(APEX_CPU *cpu){
@@ -994,7 +972,7 @@ static void LSQEntryLoad(APEX_CPU *cpu){
  */
 static void
 APEX_dispatch(APEX_CPU *cpu) {
-    if(cpu->dispatch.has_insn && isLSQFull(cpu)) {
+    if(cpu->dispatch.has_insn && isLSQFull(cpu) && isFull(cpu)) {
         switch (cpu->decode.opcode)
         {
             case OPCODE_ADD:
@@ -1006,6 +984,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_DIV:
             {
                 iq_entry_pd_ps1_ps2(cpu);
+                initialize_R2R_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1020,6 +999,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 iq_entry_pd_ps1(cpu);
+                initialize_R2R_rob_entry(cpu);
 
                 // update_rs1_with_forwarded_value(cpu);
                 // printf("rs1 %d", cpu->decode.rs1_value);
@@ -1031,8 +1011,8 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_LOADP:
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
-                
-
+                iq_entry_pd_ps1(cpu);
+                initialize_load_rob_entry(cpu);
                 // update_rs1_with_forwarded_value(cpu);
                 // cpu->is_data_forwarded = 0;
                 // cpu->scoreBoarding[cpu->decode.rd] = 1;
@@ -1048,6 +1028,7 @@ APEX_dispatch(APEX_CPU *cpu) {
                 /* MOVC doesn't have register operands */
                 // cpu->scoreBoarding[cpu->decode.rd] = 1;
                 iq_entry_pd(cpu);
+                initialize_R2R_rob_entry(cpu);
                 break;
             }
 
@@ -1059,6 +1040,8 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_STORE:
             case OPCODE_STOREP:
             {
+                iq_entry_ps1_ps2(cpu);
+                initialize_store_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1076,6 +1059,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_CMP:
             {
                 iq_entry_ps1_ps2(cpu);
+                initialize_R2R_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1088,6 +1072,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_JUMP:
             {
                 iq_entry_ps1(cpu);
+                initialize_R2R_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
 
                 // update_rs1_with_forwarded_value(cpu);
@@ -1100,6 +1085,16 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_BP:
             case OPCODE_BNP:
             {
+                for(int i = 0; i < 16; i++) {
+                    if(cpu->iq_entries[i].allocated == 0) {
+                        cpu->iq_entries[i].allocated = 1;
+                        cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
+                        cpu->iq_entries[i].dest = cpu->dispatch.pd;
+                        cpu->iq_entries[i].src1_valid_bit = 1;
+                        cpu->iq_entries[i].src2_valid_bit = 1;
+                    }
+                }
+                initialize_R2R_rob_entry(cpu);
                 break;
             }
         }
@@ -1349,6 +1344,66 @@ static void do_branching(APEX_CPU *cpu) {
 // }
 
 
+static void APEX_AFU(APEX_CPU *cpu) {
+    if(cpu->afu.has_insn) {
+        int opcode = 0;
+        switch (opcode) {
+            case OPCODE_LOAD:
+                //get rs1 and imm from lsq entry
+                cpu->afu.memory_address 
+                        = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->memory_address = cpu->afu.memory_address;
+                break;
+            case OPCODE_LOADP:
+            //get rs1 and imm from lsq entry
+                cpu->afu.memory_address 
+                        = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->memory_address = cpu->afu.memory_address;
+                //update src2 + 4
+                break;
+            
+            case OPCODE_STORE:
+                //get rs1 and imm from lsq entry
+                cpu->afu.memory_address 
+                        = cpu->afu.rs1_value + cpu->afu.rs2_value;
+                cpu->memory_address = cpu->afu.memory_address;
+            
+            case OPCODE_STOREP:
+            //get rs1 and imm from lsq entry
+                cpu->afu.memory_address 
+                        = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->memory_address = cpu->afu.memory_address;
+                //update src2 + 4
+                break;
+
+            case OPCODE_BZ:
+            case OPCODE_BNZ:
+            case OPCODE_BP:
+            case OPCODE_BNP:
+                //get imm from BQ entry
+                cpu->memory_address = cpu->afu.pc + cpu->afu.imm;
+                break;
+
+            case OPCODE_JUMP:
+                //get imm from BQ entry
+                cpu->memory_address = cpu->afu.rs1_value + cpu->afu.imm;
+                break;
+            
+            case OPCODE_JALR:
+                //get imm from BQ entry
+                cpu->memory_address = cpu->execute.pc + 4;
+                break;
+            
+        }
+        cpu->afu.has_insn = FALSE;
+
+        if (ENABLE_DEBUG_MESSAGES)
+        {
+            display_stage_content("AFU/RF", &cpu->decode);
+        }
+        }
+}
+
 /*
  * Execute Stage of APEX Pipeline
  *
@@ -1362,6 +1417,314 @@ APEX_execute(APEX_CPU *cpu)
         /* Execute logic based on instruction type */
         switch (cpu->execute.opcode)
         {
+            
+
+        }
+
+        /* Copy data from execute latch to memory latch*/
+        cpu->memory = cpu->execute;
+        cpu->execute.has_insn = FALSE;
+
+        if (ENABLE_DEBUG_MESSAGES)
+        {
+            display_stage_content("Execute", &cpu->execute);
+        }
+    }
+}
+
+static void APEX_BFU(APEX_CPU *cpu) {
+    if(cpu->bfu.has_insn) {
+        int opcode = 0;
+        switch(opcode) {
+            case OPCODE_BP:
+            {
+                cpu->branch_target_buffer[cpu->bfu.btb_index].target_address = cpu->memory_address;
+                printf("BP positiveflag %d", cpu->positive_flag);
+                if (cpu->positive_flag == TRUE)
+                {
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                    case 0:
+                        do_branching(cpu);
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                        break;
+                    case 1:
+                        if(cpu->bfu.is_btb_hit == 0) {
+                            do_branching(cpu);
+                        } else {
+                            cpu->decode.has_insn = TRUE;
+                        }
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        break;
+                    case 11:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        cpu->decode.has_insn = TRUE;
+                        break;
+                    default:
+                        break;
+                }
+                } else if(cpu->bfu.is_btb_hit == 1){
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                    case 0:
+                        break;
+                    case 1:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 0;
+                        break;
+                    case 11:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                        break;
+                    default:
+                        break;
+                    }
+                    cpu->pc = cpu->branch_target_buffer[cpu->bfu.btb_index].pc_address + 4;
+                    cpu->decode.has_insn = FALSE;
+                    cpu->fetch_from_next_cycle = TRUE;
+                    cpu->fetch.has_insn = TRUE;
+                }
+                break;
+            }
+
+            case OPCODE_BNZ:
+            {
+                cpu->branch_target_buffer[cpu->bfu.btb_index].target_address = cpu->memory_address;
+                printf("BNZ zeroflag %d", cpu->zero_flag);
+                if (cpu->zero_flag == FALSE)
+                {
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                    case 0:
+                        do_branching(cpu);
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                        break;
+                    case 1:
+                        if(cpu->bfu.is_btb_hit == 0) {
+                            do_branching(cpu);
+                        } else {
+                            cpu->decode.has_insn = TRUE;
+                        }
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        break;
+                    case 11:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        cpu->decode.has_insn = TRUE;
+                        break;
+                    default:
+                        break;
+                }
+                } else if(cpu->bfu.is_btb_hit == 1){
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                    case 0:
+                        break;
+                    case 1:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 0;
+                        break;
+                    case 11:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                        break;
+                    default:
+                        break;
+                    }
+                    cpu->pc = cpu->branch_target_buffer[cpu->bfu.btb_index].pc_address + 4;
+                    cpu->decode.has_insn = FALSE;
+                    cpu->fetch_from_next_cycle = TRUE;
+                    cpu->fetch.has_insn = TRUE;
+                }
+                break;
+            }
+
+            case OPCODE_BNP:
+            {
+                cpu->branch_target_buffer[cpu->bfu.btb_index].target_address = cpu->memory_address;
+                printf("BNP positiveflag %d", cpu->positive_flag);
+                if (cpu->positive_flag == FALSE)
+                {
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                    case 0:
+                        do_branching(cpu);
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                        break;
+                    case 1:
+                        do_branching(cpu);
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        break;
+                    case 11:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        cpu->decode.has_insn = TRUE;
+                        break;
+                    default:
+                        break;
+                }
+                } else if(cpu->bfu.is_btb_hit == 1){
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                        case 0:
+                            break;
+                        case 1:
+                            cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 0;
+                            break;
+                        case 11:
+                            cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                            break;
+                        default:
+                            break;
+                    }
+                    cpu->pc = cpu->branch_target_buffer[cpu->bfu.btb_index].pc_address + 4;
+                    cpu->decode.has_insn = FALSE;
+                    cpu->fetch_from_next_cycle = TRUE;
+                    cpu->fetch.has_insn = TRUE;
+                }
+                break;
+            }
+
+            case OPCODE_BZ:
+            {
+                cpu->branch_target_buffer[cpu->bfu.btb_index].target_address = cpu->memory_address;
+                printf("BZ zeroflag %d", cpu->zero_flag);
+              if (cpu->zero_flag == TRUE) 
+                {
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                    case 0:
+                        do_branching(cpu);
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                        break;
+                    case 1:
+                        do_branching(cpu);
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        break;
+                    case 11:
+                        cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 11;
+                        cpu->decode.has_insn = TRUE;
+                        break;
+                    default:
+                        break;
+                }
+                } else if(cpu->bfu.is_btb_hit == 1){
+                    switch (cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction) {
+                        case 0:
+                            break;
+                        case 1:
+                            cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 0;
+                            break;
+                        case 11:
+                            cpu->branch_target_buffer[cpu->bfu.btb_index].branch_prediction = 1;
+                            break;
+                        default:
+                            break;
+                    }
+                    cpu->pc = cpu->branch_target_buffer[cpu->bfu.btb_index].pc_address + 4;
+                    cpu->decode.has_insn = FALSE;
+                    cpu->fetch_from_next_cycle = TRUE;
+                    cpu->fetch.has_insn = TRUE;
+                }
+                break;
+            }
+
+            case OPCODE_JALR:
+            {
+                /* Calculate new PC, and send it to fetch unit */
+                cpu->bfu.result_buffer = cpu->memory_address;
+                // cpu->pc = cpu->regs[cpu->execute.rs1] + cpu->execute.imm;
+                cpu->pc = cpu->memory_address;
+
+                /* Since we are using reverse callbacks for pipeline stages, 
+                * this will prevent the new instruction from being fetched in the current cycle*/
+                cpu->fetch_from_next_cycle = TRUE;
+
+                /* Flush previous stages */
+                cpu->decode.has_insn = FALSE;
+
+                /* Make sure fetch stage is enabled to start fetching from new PC */
+                cpu->fetch.has_insn = TRUE;
+                break;
+            }
+
+            case OPCODE_JUMP:
+            {
+                /* Calculate new PC, and send it to fetch unit */
+                cpu->bfu.result_buffer = cpu->memory_address;
+                cpu->pc = cpu->memory_address;
+                printf("New addres %d\n", cpu->bfu.result_buffer);
+                /* Since we are using reverse callbacks for pipeline stages, 
+                * this will prevent the new instruction from being fetched in the current cycle*/
+                cpu->fetch_from_next_cycle = TRUE;
+
+                /* Flush previous stages */
+                cpu->decode.has_insn = FALSE;
+
+                /* Make sure fetch stage is enabled to start fetching from new PC */
+                cpu->fetch.has_insn = TRUE;
+                break;
+            }
+
+        }
+        cpu->bfu.has_insn = FALSE;
+
+        if (ENABLE_DEBUG_MESSAGES)
+        {
+            display_stage_content("BFU", &cpu->bfu);
+        }
+    }
+}
+
+
+static void APEX_MulFu(APEX_CPU *cpu) {
+    if(cpu->mulfu.has_insn) {
+        int opcode = 0;
+    switch(cpu->mulfu.has_insn) {
+        case OPCODE_MUL:
+        {
+            cpu->mulfu.result_buffer
+                = cpu->mulfu.rs1_value * cpu->mulfu.rs2_value;
+            /* Set the zero flag based on the result buffer */
+            set_branch_flags(cpu);
+            // update_stalling_flags(cpu);
+            printf("output is %d \n",cpu->mulfu
+            .result_buffer);
+            break;
+            }
+    }
+    cpu->mulfu.has_insn = FALSE;
+
+    if (ENABLE_DEBUG_MESSAGES)
+    {
+        display_stage_content("MulFu", &cpu->mulfu);
+    }
+}
+}
+
+static void APEX_MAU(APEX_CPU *cpu) {
+    if(cpu->mau.has_insn) {
+    int opcode = 0;
+    switch(opcode) {
+        case OPCODE_LOAD:
+        case OPCODE_LOADP:
+        {
+                /* Read from data memory */
+            cpu->mau.result_buffer
+                = cpu->data_memory[cpu->memory_address];
+            // cpu->memory.data_forward = cpu->memory.result_buffer;
+            // printf("loadp %d", cpu->memory.data_forward);
+            break;
+        }
+
+        case OPCODE_STORE:
+        case OPCODE_STOREP:
+        {
+            /* Read from data memory */
+            cpu->data_memory[cpu->memory_address] = cpu->mau.rs1_value;
+            break;
+        }
+    }
+    cpu->mau.has_insn = FALSE;
+
+    if (ENABLE_DEBUG_MESSAGES)
+    {
+        display_stage_content("MAU", &cpu->mau);
+    }
+    }
+}
+
+static void APEX_IntFu(APEX_CPU *cpu) {
+    if(cpu->intfu.has_insn) {
+        int opcode = 0;
+        switch(opcode) {
             case OPCODE_ADD:
             {
                     cpu->execute.result_buffer
@@ -1430,17 +1793,7 @@ APEX_execute(APEX_CPU *cpu)
                 break;
             }
 
-            case OPCODE_MUL:
-            {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value * cpu->execute.rs2_value;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
-                    /* Set the zero flag based on the result buffer */
-                    set_branch_flags(cpu);
-                    // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
-                break;
-            }
+            
 
             case OPCODE_AND:
             {
@@ -1478,224 +1831,6 @@ APEX_execute(APEX_CPU *cpu)
                 break;
             }
 
-            case OPCODE_LOAD:
-            {
-                cpu->execute.memory_address
-                    = cpu->execute.rs1_value + cpu->execute.imm;
-                cpu->execute.data_forward = cpu->execute.memory_address;
-                cpu->scoreBoarding[cpu->execute.rd] = 1;
-                break;
-            }
-
-            case OPCODE_LOADP:
-            {
-                cpu->execute.memory_address
-                    = cpu->execute.rs1_value + cpu->execute.imm;
-                cpu->execute.updated_register_src1 = cpu->execute.rs1_value + 4;
-                cpu->execute.data_forward = cpu->execute.updated_register_src1;
-                // cpu->execute.data_forward = cpu->execute.updated_register_src1;
-                cpu->scoreBoarding[cpu->execute.rs1] = 0;
-                cpu->scoreBoarding[cpu->execute.rd] = 1;
-                break;
-            }
-
-            case OPCODE_BP:
-            {
-                cpu->branch_target_buffer[cpu->execute.btb_index].target_address = cpu->execute.pc + cpu->execute.imm;
-                printf("BP positiveflag %d", cpu->positive_flag);
-                if (cpu->positive_flag == TRUE)
-                {
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                    case 0:
-                        do_branching(cpu);
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                        break;
-                    case 1:
-                        if(cpu->execute.is_btb_hit == 0) {
-                            do_branching(cpu);
-                        } else {
-                            cpu->decode.has_insn = TRUE;
-                        }
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        break;
-                    case 11:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        cpu->decode.has_insn = TRUE;
-                        break;
-                    default:
-                        break;
-                }
-                } else if(cpu->execute.is_btb_hit == 1){
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                    case 0:
-                        break;
-                    case 1:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 0;
-                        break;
-                    case 11:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                        break;
-                    default:
-                        break;
-                    }
-                    cpu->pc = cpu->branch_target_buffer[cpu->execute.btb_index].pc_address + 4;
-                    cpu->decode.has_insn = FALSE;
-                    cpu->fetch_from_next_cycle = TRUE;
-                    cpu->fetch.has_insn = TRUE;
-                }
-                break;
-            }
-
-            case OPCODE_BNZ:
-            {
-                cpu->branch_target_buffer[cpu->execute.btb_index].target_address = cpu->execute.pc + cpu->execute.imm;
-                printf("BNZ zeroflag %d", cpu->zero_flag);
-                if (cpu->zero_flag == FALSE)
-                {
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                    case 0:
-                        do_branching(cpu);
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                        break;
-                    case 1:
-                        if(cpu->execute.is_btb_hit == 0) {
-                            do_branching(cpu);
-                        } else {
-                            cpu->decode.has_insn = TRUE;
-                        }
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        break;
-                    case 11:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        cpu->decode.has_insn = TRUE;
-                        break;
-                    default:
-                        break;
-                }
-                } else if(cpu->execute.is_btb_hit == 1){
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                    case 0:
-                        break;
-                    case 1:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 0;
-                        break;
-                    case 11:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                        break;
-                    default:
-                        break;
-                    }
-                    cpu->pc = cpu->branch_target_buffer[cpu->execute.btb_index].pc_address + 4;
-                    cpu->decode.has_insn = FALSE;
-                    cpu->fetch_from_next_cycle = TRUE;
-                    cpu->fetch.has_insn = TRUE;
-                }
-                break;
-            }
-
-            case OPCODE_BNP:
-            {
-                cpu->branch_target_buffer[cpu->execute.btb_index].target_address = cpu->execute.pc + cpu->execute.imm;
-                printf("BNP positiveflag %d", cpu->positive_flag);
-                if (cpu->positive_flag == FALSE)
-                {
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                    case 0:
-                        do_branching(cpu);
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                        break;
-                    case 1:
-                        do_branching(cpu);
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        break;
-                    case 11:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        cpu->decode.has_insn = TRUE;
-                        break;
-                    default:
-                        break;
-                }
-                } else if(cpu->execute.is_btb_hit == 1){
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                        case 0:
-                            break;
-                        case 1:
-                            cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 0;
-                            break;
-                        case 11:
-                            cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                            break;
-                        default:
-                            break;
-                    }
-                    cpu->pc = cpu->branch_target_buffer[cpu->execute.btb_index].pc_address + 4;
-                    cpu->decode.has_insn = FALSE;
-                    cpu->fetch_from_next_cycle = TRUE;
-                    cpu->fetch.has_insn = TRUE;
-                }
-                break;
-            }
-
-            case OPCODE_BZ:
-            {
-                cpu->branch_target_buffer[cpu->execute.btb_index].target_address = cpu->execute.pc + cpu->execute.imm;
-                printf("BZ zeroflag %d", cpu->zero_flag);
-              if (cpu->zero_flag == TRUE) 
-                {
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                    case 0:
-                        do_branching(cpu);
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                        break;
-                    case 1:
-                        do_branching(cpu);
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        break;
-                    case 11:
-                        cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 11;
-                        cpu->decode.has_insn = TRUE;
-                        break;
-                    default:
-                        break;
-                }
-                } else if(cpu->execute.is_btb_hit == 1){
-                    switch (cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction) {
-                        case 0:
-                            break;
-                        case 1:
-                            cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 0;
-                            break;
-                        case 11:
-                            cpu->branch_target_buffer[cpu->execute.btb_index].branch_prediction = 1;
-                            break;
-                        default:
-                            break;
-                    }
-                    cpu->pc = cpu->branch_target_buffer[cpu->execute.btb_index].pc_address + 4;
-                    cpu->decode.has_insn = FALSE;
-                    cpu->fetch_from_next_cycle = TRUE;
-                    cpu->fetch.has_insn = TRUE;
-                }
-                break;
-            }
-
-            case OPCODE_BN:
-            {
-                if (cpu->negative_flag == TRUE)
-                {
-                    do_branching(cpu);
-                }
-                break;
-            }
-
-            case OPCODE_BNN:
-            {
-                if (cpu->negative_flag == FALSE)
-                {
-                    do_branching(cpu);
-                }
-                break;
-            }
 
             case OPCODE_MOVC: 
             {
@@ -1706,27 +1841,6 @@ APEX_execute(APEX_CPU *cpu)
 
             case OPCODE_NOP:
             {
-                break;
-            }
-
-            case OPCODE_STORE:
-            {
-                cpu->execute.memory_address
-                    = cpu->execute.rs2_value + cpu->execute.imm;
-                // cpu->execute.data_forward = cpu->execute.memory_address;
-                cpu->scoreBoarding[cpu->execute.rs1] = 0;
-                cpu->scoreBoarding[cpu->execute.rs2] = 0;
-                break;
-            }
-
-            case OPCODE_STOREP:
-            {
-                cpu->execute.memory_address
-                    = cpu->execute.rs2_value + cpu->execute.imm;
-                cpu->execute.updated_register_src1 = cpu->execute.rs2_value + 4;
-                cpu->execute.data_forward = cpu->execute.updated_register_src1;
-                cpu->scoreBoarding[cpu->execute.rs1] = 0;
-                cpu->scoreBoarding[cpu->execute.rs2] = 0;
                 break;
             }
 
@@ -1769,53 +1883,12 @@ APEX_execute(APEX_CPU *cpu)
                 }
                 break;   
             }
-
-            case OPCODE_JALR:
-            {
-                /* Calculate new PC, and send it to fetch unit */
-                cpu->execute.result_buffer = cpu->execute.pc + 4;
-                // cpu->pc = cpu->regs[cpu->execute.rs1] + cpu->execute.imm;
-                cpu->pc = cpu->execute.rs1_value + cpu->execute.imm;
-
-                /* Since we are using reverse callbacks for pipeline stages, 
-                * this will prevent the new instruction from being fetched in the current cycle*/
-                cpu->fetch_from_next_cycle = TRUE;
-
-                /* Flush previous stages */
-                cpu->decode.has_insn = FALSE;
-
-                /* Make sure fetch stage is enabled to start fetching from new PC */
-                cpu->fetch.has_insn = TRUE;
-                break;
-            }
-
-            case OPCODE_JUMP:
-            {
-                /* Calculate new PC, and send it to fetch unit */
-                cpu->execute.result_buffer = cpu->execute.rs1_value + cpu->execute.imm;
-                cpu->pc = cpu->execute.result_buffer;
-                printf("New addres %d\n", cpu->execute.result_buffer);
-                /* Since we are using reverse callbacks for pipeline stages, 
-                * this will prevent the new instruction from being fetched in the current cycle*/
-                cpu->fetch_from_next_cycle = TRUE;
-
-                /* Flush previous stages */
-                cpu->decode.has_insn = FALSE;
-
-                /* Make sure fetch stage is enabled to start fetching from new PC */
-                cpu->fetch.has_insn = TRUE;
-                break;
-            }
-
         }
-
-        /* Copy data from execute latch to memory latch*/
-        cpu->memory = cpu->execute;
-        cpu->execute.has_insn = FALSE;
+        cpu->intfu.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
         {
-            display_stage_content("Execute", &cpu->execute);
+            display_stage_content("IntFu", &cpu->intfu);
         }
     }
 }
@@ -1869,39 +1942,12 @@ APEX_memory(APEX_CPU *cpu)
                 break;
             }
 
-            case OPCODE_LOAD:
-            case OPCODE_LOADP:
-            {
-                /* Read from data memory */
-                cpu->memory.result_buffer
-                    = cpu->data_memory[cpu->memory.memory_address];
-                // cpu->memory.data_forward = cpu->memory.result_buffer;
-                printf("loadp %d", cpu->memory.data_forward);
-                cpu->memory.data_forward = cpu->memory.result_buffer;
-                cpu->scoreBoarding[cpu->memory.rd] = 0;                
-                break;
-            }
 
             case OPCODE_NOP:
             {
                 break;
             }
 
-            case OPCODE_STORE:
-            {
-                /* Read from data memory */
-                cpu->data_memory[cpu->memory.memory_address] = cpu->memory.rs1_value;
-                cpu->scoreBoarding[cpu->memory.rs1] = 0;
-                break;
-            }
-
-            case OPCODE_STOREP:
-            {
-                /* Read from data memory */
-                cpu->data_memory[cpu->memory.memory_address] = cpu->memory.rs1_value;
-                cpu->memory.data_forward = cpu->memory.updated_register_src1;
-                break;
-            }
 
             case OPCODE_MOVC:
             {
@@ -2129,6 +2175,11 @@ APEX_cpu_init(const char *filename)
 
     cpu->counter = 0;
     cpu->index = 0;
+
+    cpu->ROB_queue.ROB_head = -1;
+    cpu->ROB_queue.ROB_tail = -1;
+    cpu->ROB_queue.capacity = (int*)malloc(32 * sizeof(int));
+
     /* To start fetch stage */
     cpu->fetch.has_insn = TRUE;
     cpu->free_list = 24;
@@ -2173,6 +2224,12 @@ APEX_cpu_run(APEX_CPU *cpu)
         }
         APEX_memory(cpu);
         APEX_execute(cpu);
+        APEX_ROB(cpu);
+        APEX_IntFu(cpu);
+        APEX_MAU(cpu);
+        APEX_MulFu(cpu);
+        APEX_BFU(cpu);
+        APEX_AFU(cpu);
         APEX_dispatch(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
