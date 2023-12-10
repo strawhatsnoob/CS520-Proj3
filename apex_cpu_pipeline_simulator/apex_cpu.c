@@ -395,11 +395,11 @@ static void remove_from_btb(APEX_CPU *cpu) {
 }
 
 int isEmpty(APEX_CPU *cpu) {
-    return (cpu->ROB_queue.ROB_head == -1);
+    return (cpu->ROB_queue.capacity == 0);
 }
 
 int isFull(APEX_CPU *cpu) {
-    return ((cpu->ROB_queue.ROB_tail + 1) % 32 == cpu->ROB_queue.ROB_head);
+    return (cpu->ROB_queue.capacity >= 32);
 }
 
 void enqueue(APEX_CPU *cpu) {
@@ -412,6 +412,7 @@ void enqueue(APEX_CPU *cpu) {
     } else {
         cpu->ROB_queue.ROB_tail = (cpu->ROB_queue.ROB_tail + 1) % 32;
     }
+    cpu->ROB_queue.capacity++;
     cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_tail] = cpu->rob_entry;
 }
 
@@ -427,6 +428,7 @@ ROB_Entries dequeue(APEX_CPU *cpu) {
     } else {
         cpu->ROB_queue.ROB_head = (cpu->ROB_queue.ROB_head + 1) % 32;
     }
+    cpu->ROB_queue.capacity--;
     return rob_entry;
 }
 
@@ -670,6 +672,7 @@ static void initialize_R2R_rob_entry(APEX_CPU *cpu) {
         cpu->rob_entry.pc_value = cpu->dispatch.pc;
         cpu->rob_entry.opcode = cpu->dispatch.opcode;
         cpu->rob_entry.rename_table_entry = cpu->prev_dest;
+        enqueue(cpu);
     }
 }
 
@@ -775,14 +778,16 @@ static void do_commit(Register_Rename physical_entry, int dest_address, APEX_CPU
 }
 
 static void APEX_ROB(APEX_CPU *cpu) {
-    for(int i = 0; i < 24; i++) {
-        if(cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register) {
-            if(cpu->physical_register[cpu->physical_queue[i]].allocated == 1) {
-                ROB_Entries current_entry = dequeue(cpu);
-                do_commit(cpu->physical_register[cpu->physical_queue[i]], cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_arch_register ,
-                cpu);
-                cpu->rename_table[cpu->physical_queue[i]] = -1;
-                break;
+    if(cpu->rob.has_insn) {
+        for(int i = 0; i < 24; i++) {
+            if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].entry_bit == 1 && cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register) {
+                if(cpu->physical_register[cpu->physical_queue[i]].allocated == 1) {
+                    ROB_Entries current_entry = dequeue(cpu);
+                    do_commit(cpu->physical_register[cpu->physical_queue[i]], cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_arch_register ,
+                    cpu);
+                    cpu->rename_table[cpu->physical_queue[i]] = -1;
+                    break;
+                }
             }
         }
     }
@@ -825,7 +830,7 @@ static void fetch_LSQ_Entry(APEX_CPU *cpu){
 }
 
 static int isLSQFull(APEX_CPU *cpu) {
-    return (cpu->lsq.numberOfEntries < 16);
+    return (cpu->lsq.numberOfEntries >= 16);
 }
 
 static int isLSQEmpty(APEX_CPU *cpu) {
@@ -992,8 +997,8 @@ static void LSQEntryLoad(APEX_CPU *cpu){
  */
 static void
 APEX_dispatch(APEX_CPU *cpu) {
-    if(cpu->dispatch.has_insn && isLSQFull(cpu) && isFull(cpu)) {
-        switch (cpu->decode.opcode)
+    if(cpu->dispatch.has_insn && !isLSQFull(cpu) && !isFull(cpu)) {
+        switch (cpu->dispatch.opcode)
         {
             case OPCODE_ADD:
             case OPCODE_SUB:
@@ -1350,17 +1355,17 @@ APEX_decode(APEX_CPU *cpu)
 }
 
 static void set_branch_flags(APEX_CPU *cpu) {
-    if (cpu->execute.result_buffer == 0) {
+    if (cpu->intfu.result_buffer == 0) {
         cpu->zero_flag = TRUE;
     } else {
         cpu->zero_flag = FALSE;
     }
-    if(cpu->execute.result_buffer > 0) {
+    if(cpu->intfu.result_buffer > 0) {
         cpu->positive_flag = TRUE;
     } else {
       cpu->positive_flag = FALSE;
     }
-    if (cpu->execute.result_buffer < 0) {
+    if (cpu->intfu.result_buffer < 0) {
       cpu->negative_flag = TRUE;
     } else {
       cpu->negative_flag = FALSE;
@@ -1403,28 +1408,28 @@ static void APEX_AFU(APEX_CPU *cpu) {
         switch (opcode) {
             case OPCODE_LOAD:
                 //get rs1 and imm from lsq entry
-                cpu->afu.memory_address 
-                        = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->afu.memory_address = cpu->afu.iq_entry.src2_value + cpu->afu.iq_entry.literal;
+                        // = cpu->afu.rs1_value + cpu->afu.imm;
                 cpu->memory_address = cpu->afu.memory_address;
                 break;
             case OPCODE_LOADP:
             //get rs1 and imm from lsq entry
-                cpu->afu.memory_address 
-                        = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->afu.memory_address = cpu->afu.iq_entry.src2_value + cpu->afu.iq_entry.literal;
+                        // = cpu->afu.rs1_value + cpu->afu.imm;
                 cpu->memory_address = cpu->afu.memory_address;
                 //update src2 + 4
                 break;
             
             case OPCODE_STORE:
                 //get rs1 and imm from lsq entry
-                cpu->afu.memory_address 
-                        = cpu->afu.rs1_value + cpu->afu.rs2_value;
+                cpu->afu.memory_address = cpu->afu.iq_entry.src1_value + cpu->afu.iq_entry.src2_value;
+                        // = cpu->afu.rs1_value + cpu->afu.rs2_value;
                 cpu->memory_address = cpu->afu.memory_address;
             
             case OPCODE_STOREP:
             //get rs1 and imm from lsq entry
-                cpu->afu.memory_address 
-                        = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->afu.memory_address = cpu->afu.iq_entry.src1_value + cpu->afu.iq_entry.literal;
+                        // = cpu->afu.rs1_value + cpu->afu.imm;
                 cpu->memory_address = cpu->afu.memory_address;
                 //update src2 + 4
                 break;
@@ -1434,17 +1439,20 @@ static void APEX_AFU(APEX_CPU *cpu) {
             case OPCODE_BP:
             case OPCODE_BNP:
                 //get imm from BQ entry
-                cpu->memory_address = cpu->afu.pc + cpu->afu.imm;
+                cpu->memory_address = cpu->afu.iq_entry.pc_address + cpu->afu.iq_entry.literal;
+                // cpu->afu.pc + cpu->afu.imm;
                 break;
 
             case OPCODE_JUMP:
                 //get imm from BQ entry
-                cpu->memory_address = cpu->afu.rs1_value + cpu->afu.imm;
+                cpu->memory_address = cpu->afu.iq_entry.src1_value + cpu->afu.iq_entry.literal;
+                // cpu->afu.rs1_value + cpu->afu.imm;
                 break;
             
             case OPCODE_JALR:
                 //get imm from BQ entry
-                cpu->memory_address = cpu->execute.pc + 4;
+                cpu->memory_address = cpu->afu.iq_entry.pc_address + 4;
+                // cpu->execute.pc + 4;
                 break;
             
         }
@@ -1722,8 +1730,8 @@ static void APEX_MulFu(APEX_CPU *cpu) {
     switch(cpu->mulfu.has_insn) {
         case OPCODE_MUL:
         {
-            cpu->mulfu.result_buffer
-                = cpu->mulfu.rs1_value * cpu->mulfu.rs2_value;
+            cpu->mulfu.result_buffer = cpu->mulfu.iq_entry.src1_value * cpu->mulfu.iq_entry.src2_value;
+                // = cpu->mulfu.rs1_value * cpu->mulfu.rs2_value;
             /* Set the zero flag based on the result buffer */
             set_branch_flags(cpu);
             // update_stalling_flags(cpu);
@@ -1779,33 +1787,33 @@ static void APEX_IntFu(APEX_CPU *cpu) {
         switch(opcode) {
             case OPCODE_ADD:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value + cpu->execute.rs2_value;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value + cpu->intfu.iq_entry.src2_value;
+                    // = cpu->execute.rs1_value + cpu->execute.rs2_value;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
             case OPCODE_DIV:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value / cpu->execute.rs2_value;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value / cpu->intfu.iq_entry.src2_value;
+                    // = cpu->execute.rs1_value / cpu->execute.rs2_value;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
             case OPCODE_ADDL:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value + cpu->execute.imm;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value + cpu->intfu.iq_entry.literal;
+                    // = cpu->execute.rs1_value + cpu->execute.imm;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // if(cpu->execute.rd != cpu->execute.rs1) {
@@ -1813,27 +1821,27 @@ static void APEX_IntFu(APEX_CPU *cpu) {
                     // } else {
                     //     cpu->scoreBoarding[cpu->execute.rs1] = 1;
                     // }
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
             case OPCODE_SUB:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value - cpu->execute.rs2_value;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value - cpu->intfu.iq_entry.src2_value;
+                    // = cpu->execute.rs1_value - cpu->execute.rs2_value;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
             case OPCODE_SUBL:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value - cpu->execute.imm;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value - cpu->intfu.iq_entry.literal;
+                    // = cpu->execute.rs1_value - cpu->execute.imm;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // if(cpu->execute.rd != cpu->execute.rs1) {
@@ -1841,7 +1849,7 @@ static void APEX_IntFu(APEX_CPU *cpu) {
                     // } else {
                     //     cpu->scoreBoarding[cpu->execute.rs1] = 1;
                     // }
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
@@ -1849,45 +1857,45 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_AND:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value & cpu->execute.rs2_value;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value & cpu->intfu.iq_entry.src2_value;
+                    // = cpu->execute.rs1_value & cpu->execute.rs2_value;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
             case OPCODE_OR:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value | cpu->execute.rs2_value;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value | cpu->intfu.iq_entry.src2_value;
+                    // = cpu->execute.rs1_value | cpu->execute.rs2_value;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
             case OPCODE_XOR:
             {
-                    cpu->execute.result_buffer
-                    = cpu->execute.rs1_value ^ cpu->execute.rs2_value;
-                    cpu->execute.data_forward = cpu->execute.result_buffer;
+                    cpu->execute.result_buffer = cpu->intfu.iq_entry.src1_value ^ cpu->intfu.iq_entry.src2_value;
+                    // = cpu->execute.rs1_value ^ cpu->execute.rs2_value;
+                    cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
                     // update_stalling_flags(cpu);
-                    printf("output is %d \n",cpu->execute.result_buffer);
+                    printf("output is %d \n",cpu->intfu.result_buffer);
                 break;
             }
 
 
             case OPCODE_MOVC: 
             {
-                cpu->execute.result_buffer = cpu->execute.imm + 0;
-                cpu->execute.data_forward = cpu->execute.result_buffer;
+                cpu->intfu.result_buffer = cpu->intfu.iq_entry.literal + 0;
+                cpu->intfu.data_forward = cpu->intfu.result_buffer;
                 break;
             }
 
@@ -1898,17 +1906,17 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_CMP:
             {
-                if(cpu->execute.rs1_value > cpu->execute.rs2_value) {
+                if(cpu->intfu.iq_entry.src1_value > cpu->intfu.iq_entry.src2_value) {
                     cpu->positive_flag = TRUE;
                 } else {
                     cpu->positive_flag = FALSE;
                 }
-                if(cpu->execute.rs1_value < cpu->execute.rs2_value) {
+                if(cpu->intfu.iq_entry.src1_value < cpu->intfu.iq_entry.src2_value) {
                     cpu->negative_flag = TRUE;
                 } else {
                     cpu->negative_flag = FALSE;
                 }
-                if(cpu->execute.rs1_value == cpu->execute.rs2_value) {
+                if(cpu->intfu.iq_entry.src1_value == cpu->intfu.iq_entry.src2_value) {
                     cpu->zero_flag = TRUE;
                 } else {
                     cpu->zero_flag = FALSE;
@@ -1918,17 +1926,17 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_CML:
             {
-                if(cpu->execute.rs1_value > cpu->execute.imm) {
+                if(cpu->intfu.iq_entry.src1_value > cpu->intfu.iq_entry.literal) {
                     cpu->positive_flag = TRUE;
                 } else {
                     cpu->positive_flag = FALSE;
                 }
-                if(cpu->execute.rs1_value < cpu->execute.imm) {
+                if(cpu->intfu.iq_entry.src1_value < cpu->intfu.iq_entry.literal) {
                     cpu->negative_flag = TRUE;
                 } else {
                     cpu->negative_flag = FALSE;
                 }
-                if(cpu->execute.rs1_value == cpu->execute.imm) {
+                if(cpu->intfu.iq_entry.src1_value == cpu->intfu.iq_entry.literal) {
                     cpu->zero_flag = TRUE;
                 } else {
                     cpu->zero_flag = FALSE;
@@ -2240,7 +2248,7 @@ APEX_cpu_init(const char *filename)
 
     cpu->ROB_queue.ROB_head = -1;
     cpu->ROB_queue.ROB_tail = -1;
-    cpu->ROB_queue.capacity = (int*)malloc(32 * sizeof(int));
+    cpu->ROB_queue.capacity = 0;
 
     /* To start fetch stage */
     cpu->fetch.has_insn = TRUE;

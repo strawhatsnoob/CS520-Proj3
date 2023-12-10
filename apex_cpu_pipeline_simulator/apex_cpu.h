@@ -25,6 +25,21 @@ typedef struct APEX_Instruction
     int is_empty_rs2;
 } APEX_Instruction;
 
+typedef struct IQ_Entries {
+    int allocated;
+    int opcode;
+    int literal;
+    int src1_valid_bit;
+    int src1_tag;
+    int src1_value;
+    int src2_valid_bit;
+    int src2_tag;
+    int src2_value;
+    int dest;
+    int pc_address;
+    int is_used;
+}IQ_Entries;
+
 /* Model of CPU stage latch */
 typedef struct CPU_Stage
 {
@@ -55,6 +70,7 @@ typedef struct CPU_Stage
     int ps2;
     int is_bq;
     int is_iq;
+    IQ_Entries iq_entry;
 } CPU_Stage;
 
 typedef struct BTB {
@@ -79,20 +95,6 @@ typedef struct Data_Forward {
     int is_allocated;
 }Data_Forward;
 
-typedef struct IQ_Entries {
-    int allocated;
-    int opcode;
-    int literal;
-    int src1_valid_bit;
-    int src1_tag;
-    int src1_value;
-    int src2_valid_bit;
-    int src2_tag;
-    int src2_value;
-    int dest;
-    int pc_address;
-    int is_used;
-}IQ_Entries;
 
 typedef struct BQ_Entry {
     int pc_address;
@@ -117,7 +119,7 @@ typedef struct ROB_Queue {
     ROB_Entries rob_entries[32];
     int ROB_head;
     int ROB_tail;
-    int *capacity;
+    int capacity;
 }ROB_Queue;
 
 typedef struct LSQEntry{
@@ -182,7 +184,7 @@ typedef struct APEX_CPU
     CPU_Stage writeback;
 
 
-    BTB branch_target_buffer[4];
+    BTB branch_target_buffer[8];
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
     Data_Forward data_forward[2];
