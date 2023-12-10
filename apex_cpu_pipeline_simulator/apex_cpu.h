@@ -95,6 +95,7 @@ typedef struct IQ_Entries {
     int is_used;
     int dispatch_time;
     int elapsed_cycles_at_dispatch;
+    int is_ready;
 }IQ_Entries;
 
 typedef struct BQ_Entry {
@@ -225,4 +226,7 @@ void dispatch_to_BQ(APEX_CPU *cpu, BQ_Entry *bq_entry);
 void dispatch_to_IQ(APEX_CPU *cpu, IQ_Entries *iq_entry);
 int is_branch_instruction(int opcode);
 int check_issue_ready(CPU_Stage stage);
+void APEX_issue_queue(APEX_CPU *cpu);
+void APEX_branch_queue(APEX_CPU *cpu);
+int check_wakeup_condition(APEX_CPU *cpu, IQ_Entries *iq_entry);
 #endif

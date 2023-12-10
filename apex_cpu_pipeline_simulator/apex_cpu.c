@@ -388,6 +388,149 @@ APEX_fetch(APEX_CPU *cpu)
     }
 }
 
+void APEX_issue_queue(APEX_CPU *cpu) {
+    // Initialize IQ
+    for (int i = 0; i < 24; i++) {
+        cpu->iq_entries[i].is_used = 0;
+    }
+    if (cpu->iq_size > 0) {
+        // Issue instructions from the Instruction Queue
+        int issue_ready = check_issue_ready(cpu->dispatch);
+        if (issue_ready) {
+            if (!(is_branch_instruction(cpu->dispatch.opcode))) {
+                // Dispatch to Issue Queue (IQ)
+                dispatch_to_IQ(cpu, &cpu->iq_entries[cpu->iq_index]);
+                cpu->iq_index = (cpu->iq_index + 1) % 24;
+                cpu->iq_size++;
+            }
+        }
+    }  
+    // Check if there is forwarded data
+        if (cpu->data_forward[0].flag || cpu->data_forward[1].flag) {
+            for (int i = 0; i < 24; i++) {
+                if (cpu->iq_entries[i].allocated) {
+                    if (cpu->data_forward[0].flag && cpu->iq_entries[i].src1_tag == cpu->data_forward[0].physical_address) {
+                        cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                        cpu->iq_entries[i].src1_valid_bit = TRUE;
+                    }
+
+                    if (cpu->data_forward[1].flag && cpu->iq_entries[i].src2_tag == cpu->data_forward[1].physical_address) {
+                        cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                        cpu->iq_entries[i].src2_valid_bit = TRUE;
+                    }
+                }
+            }
+
+            // Clear forwarding information
+            cpu->data_forward[0].flag = 0;
+            cpu->data_forward[1].flag = 0;
+        }
+
+        if (cpu->dispatch.is_used && cpu->dispatch.is_bq) {
+        cpu->dispatch.simulate_counter = 1;
+        }
+
+        cpu->dispatch.simulate_counter = 1;  
+        // Update wakeup logic for IQ entries
+        for (int i = 0; i < 24; i++) {
+            if (cpu->iq_entries[i].is_used) {
+                // Check if the wakeup condition is met
+                if (check_wakeup_condition(cpu, &cpu->iq_entries[i])) {
+                    // Set the instruction as ready to execute
+                    cpu->iq_entries[i].is_ready = 1;
+                }
+            }
+        }
+}
+
+
+void APEX_branch_queue(APEX_CPU *cpu) {
+    // Initialize BQ
+    for (int i = 0; i < 16; i++) {
+        cpu->bq[i].is_used = 0;
+    }
+    if (cpu->bq_size > 0) {
+        // Issue instructions from the Branch Queue
+        int issue_ready = check_issue_ready(cpu->dispatch);
+        if (issue_ready) {
+                if (is_branch_instruction(cpu->dispatch.opcode)) {
+                    // Dispatch to Branch Queue (BQ)
+                    dispatch_to_BQ(cpu, &cpu->bq[cpu->bq_index]);
+                    cpu->bq_index = (cpu->bq_index + 1) % 16;
+                    cpu->bq_size++;
+                }
+        }
+    }
+    for (int i = 0; i < 24; i++) {
+        if (cpu->iq_entries[i].is_used) {
+            // Check if the wakeup condition is met
+            if (check_wakeup_condition(cpu, &cpu->iq_entries[i])) {
+                // Set the instruction as ready to execute
+                cpu->iq_entries[i].is_ready = 1;
+            }
+        }
+    }
+}
+
+int check_wakeup_condition(APEX_CPU *cpu, IQ_Entries *iq_entry) {
+    // Check if the source operands are available and valid
+    int src1_ready = 0;
+    int src2_ready = 0;
+
+    if (iq_entry->src1_valid_bit) {
+        if (iq_entry->src1_value == -1) {
+            // Source operand is a register
+            if (cpu->rename_table[iq_entry->src1_tag] == -1) {
+                src1_ready = 0; // Not available
+            } else {
+                src1_ready = 1; // Available
+            }
+        } else {
+            // Source operand is a literal value
+            src1_ready = 1; // Available
+        }
+        } else {
+            // Source operand is not required
+            src1_ready = 1; // Available
+        }
+
+        if (iq_entry->src2_valid_bit) {
+            if (iq_entry->src2_value == -1) {
+                // Source operand is a register
+                if (cpu->rename_table[iq_entry->src2_tag] == -1) {
+                    src2_ready = 0; // Not available
+                } else {
+                    src2_ready = 1; // Available
+                }
+            } else {
+                // Source operand is a literal value
+                src2_ready = 1; // Available
+            }
+        } else {
+            // Source operand is not required
+            src2_ready = 1; // Available
+        }
+
+        // Check if both source operands are available
+        if (src1_ready && src2_ready) {
+
+        return 1; // Instruction is ready to execute
+        }
+        // Updated: Check if source operands are available through bus monitoring
+        if (cpu->data_forward[0].flag && (cpu->data_forward[0].physical_address == iq_entry->src1_tag)) {
+            iq_entry->src1_value = cpu->data_forward[0].data;
+            iq_entry->src1_valid_bit = 1;
+        }
+
+        if (cpu->data_forward[1].flag && (cpu->data_forward[1].physical_address == iq_entry->src2_tag)) {
+            iq_entry->src2_value = cpu->data_forward[1].data;
+            iq_entry->src2_valid_bit = 1;
+        }
+
+        return 0; // Instruction is not ready to execute
+}
+
+
 static void remove_from_btb(APEX_CPU *cpu) {
     for(int i = 0; i < 3; i++) {
         cpu->branch_target_buffer[i] = cpu->branch_target_buffer[i + 1];
@@ -1125,7 +1268,23 @@ APEX_dispatch(APEX_CPU *cpu) {
             cpu->fetch.pc = cpu->bq[index].target_address;
         }
 
-        if (cpu->dispatch.has_insn) {
+        if (cpu->dispatch.is_used && cpu->dispatch.data_forward) {
+            for (int i = 0; i < 24; i++) {
+                if (cpu->iq_entries[i].is_used && cpu->iq_entries[i].src1_valid_bit &&
+                    cpu->iq_entries[i].src1_tag == cpu->dispatch.rd) {
+                    // Forward the result to dependent instructions in IQ
+                    cpu->iq_entries[i].src1_value = cpu->dispatch.result_buffer;
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                }
+                if (cpu->iq_entries[i].is_used && cpu->iq_entries[i].src2_valid_bit &&
+                    cpu->iq_entries[i].src2_tag == cpu->dispatch.rd) {
+                    // Forward the result to dependent instructions in IQ
+                    cpu->iq_entries[i].src2_value = cpu->dispatch.result_buffer;
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                }
+            }
+        }
+       /*if (cpu->dispatch.has_insn) {
             int issue_ready = check_issue_ready(cpu->dispatch);
 
             if (issue_ready) {
@@ -1141,9 +1300,9 @@ APEX_dispatch(APEX_CPU *cpu) {
                     cpu->iq_size++;
                 }
             }
-        }
+        }*/
 
-        // Check if there is forwarded data
+        /* // Check if there is forwarded data
         if (cpu->data_forward[0].flag || cpu->data_forward[1].flag) {
             for (int i = 0; i < 24; i++) {
                 if (cpu->iq_entries[i].allocated) {
@@ -1168,7 +1327,7 @@ APEX_dispatch(APEX_CPU *cpu) {
         cpu->dispatch.simulate_counter = 1;
         }
 
-        cpu->dispatch.simulate_counter = 1;
+        cpu->dispatch.simulate_counter = 1; */
 
 
         /* Copy data from decode latch to execute latch*/
@@ -1583,6 +1742,23 @@ APEX_execute(APEX_CPU *cpu)
         /* Copy data from execute latch to memory latch*/
         cpu->memory = cpu->execute;
         cpu->execute.has_insn = FALSE;
+
+        if (cpu->execute.is_used && cpu->execute.data_forward) {
+            for (int i = 0; i < 24; i++) {
+                if (cpu->iq_entries[i].is_used && cpu->iq_entries[i].src1_valid_bit &&
+                    cpu->iq_entries[i].src1_tag == cpu->execute.rd) {
+                    // Forward the result to dependent instructions in IQ
+                    cpu->iq_entries[i].src1_value = cpu->execute.result_buffer;
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                }
+                if (cpu->iq_entries[i].is_used && cpu->iq_entries[i].src2_valid_bit &&
+                    cpu->iq_entries[i].src2_tag == cpu->execute.rd) {
+                    // Forward the result to dependent instructions in IQ
+                    cpu->iq_entries[i].src2_value = cpu->execute.result_buffer;
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                }
+            }
+        }
 
         if (ENABLE_DEBUG_MESSAGES)
         {
