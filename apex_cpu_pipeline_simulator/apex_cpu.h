@@ -25,6 +25,71 @@ typedef struct APEX_Instruction
     int is_empty_rs2;
 } APEX_Instruction;
 
+typedef struct IQ_Entries {
+    int allocated;
+    int opcode;
+    int literal;
+    int src1_valid_bit;
+    int src1_tag;
+    int src1_value;
+    int src2_valid_bit;
+    int src2_tag;
+    int src2_value;
+    int dest;
+    int pc_address;
+    int is_used;
+}IQ_Entries;
+
+typedef struct AFU_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}AFU_Data_Forward;
+
+typedef struct BFU_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}BFU_Data_Forward;
+
+typedef struct MulFu_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}MulFu_Data_Forward;
+
+typedef struct IntFu_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}IntFu_Data_Forward;
+
+typedef struct MAU_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}MAU_Data_Forward;
+
 /* Model of CPU stage latch */
 typedef struct CPU_Stage
 {
@@ -53,7 +118,14 @@ typedef struct CPU_Stage
     int pd;
     int ps1;
     int ps2;
-
+    int is_bq;
+    int is_iq;
+    IQ_Entries iq_entry;
+    // AFU_Data_Forward afu_data;
+    // BFU_Data_Forward bfu_data;
+    // IntFu_Data_Forward intfu_data;
+    // MulFu_Data_Forward mulfu_data;
+    // MAU_Data_Forward mau_data;
 } CPU_Stage;
 
 typedef struct BTB {
@@ -74,22 +146,20 @@ typedef struct Register_Rename {
 typedef struct Data_Forward {
     int physical_address;
     int data;
+    int dest_data;
+    int updated_src_data;
     int flag;
     int is_allocated;
 }Data_Forward;
 
-typedef struct IQ_Entries {
-    int allocated;
-    int opcode;
-    int literal;
-    int src1_valid_bit;
-    int src1_tag;
-    int src1_value;
-    int src2_valid_bit;
-    int src2_tag;
-    int src2_value;
-    int dest;
-}IQ_Entries;
+
+typedef struct BQ_Entry {
+    int pc_address;
+    int branch_prediction;
+    int target_address;
+    int is_used;
+    int index;
+} BQ_Entry;
 
 typedef struct ROB_Entries {
     int entry_bit;
@@ -106,7 +176,7 @@ typedef struct ROB_Queue {
     ROB_Entries rob_entries[32];
     int ROB_head;
     int ROB_tail;
-    int *capacity;
+    int capacity;
 }ROB_Queue;
 
 typedef struct LSQEntry{
@@ -156,6 +226,11 @@ typedef struct APEX_CPU
     int free_list;
     int prev_dest;
     int memory_address;
+    int has_afu_data;
+    int has_bfu_data;
+    int has_intfu_data;
+    int has_mau_data;
+    int has_mulfu_data;
 
     /* Pipeline stages */
     CPU_Stage fetch;
@@ -171,9 +246,10 @@ typedef struct APEX_CPU
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
+    // CPU_Stage data_forward_bus;
 
 
-    BTB branch_target_buffer[4];
+    BTB branch_target_buffer[8];
     Register_Rename physical_register[25];
     Register_Rename condition_code_register[16];
     Data_Forward data_forward[2];
@@ -182,30 +258,25 @@ typedef struct APEX_CPU
     ROB_Queue ROB_queue;
     LSQ lsq;
     LSQEntry entry;
-
-    // Branch Instruction Queue (BQ)
-    CPU_Stage bq[4];
+    AFU_Data_Forward afu_data;
+    BFU_Data_Forward bfu_data;
+    IntFu_Data_Forward intfu_data;
+    MulFu_Data_Forward mulfu_data;
+    MAU_Data_Forward mau_data;
+    
+    BQ_Entry bq[MAX_BQ_SIZE];
     int bq_size;
-    int bq_head;
-    int bq_tail;
-
-    // Instruction Queue (IQ)
-    CPU_Stage iq[16];
+    int bq_index;
+    IQ_Entries iq[MAX_IQ_SIZE];
     int iq_size;
-    int iq_head;
-    int iq_tail;
-
-    // Checkpointing for speculative execution
-    int checkpointed;
-    int checkpointed_free_list[REG_FILE_SIZE];
-    int checkpointed_rename_table[REG_FILE_SIZE];
+    int iq_index;
 } APEX_CPU;
+
 
 APEX_Instruction *create_code_memory(const char *filename, int *size);
 APEX_CPU *APEX_cpu_init(const char *filename);
 void APEX_cpu_run(APEX_CPU *cpu);
 void APEX_cpu_stop(APEX_CPU *cpu);
-
-void APEX_cpu_issue_instructions(APEX_CPU *cpu);
-void APEX_cpu_dispatch_instructions(APEX_CPU *cpu);
+void init_bq(APEX_CPU *cpu);
+void init_iq(APEX_CPU *cpu);
 #endif
