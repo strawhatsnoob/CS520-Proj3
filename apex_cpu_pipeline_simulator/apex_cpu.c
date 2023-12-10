@@ -1143,6 +1143,34 @@ APEX_dispatch(APEX_CPU *cpu) {
             }
         }
 
+        // Check if there is forwarded data
+        if (cpu->data_forward[0].flag || cpu->data_forward[1].flag) {
+            for (int i = 0; i < 24; i++) {
+                if (cpu->iq_entries[i].allocated) {
+                    if (cpu->data_forward[0].flag && cpu->iq_entries[i].src1_tag == cpu->data_forward[0].physical_address) {
+                        cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                        cpu->iq_entries[i].src1_valid_bit = TRUE;
+                    }
+
+                    if (cpu->data_forward[1].flag && cpu->iq_entries[i].src2_tag == cpu->data_forward[1].physical_address) {
+                        cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                        cpu->iq_entries[i].src2_valid_bit = TRUE;
+                    }
+                }
+            }
+
+            // Clear forwarding information
+            cpu->data_forward[0].flag = 0;
+            cpu->data_forward[1].flag = 0;
+        }
+
+        if (cpu->dispatch.is_used && cpu->dispatch.is_bq) {
+        cpu->dispatch.simulate_counter = 1;
+        }
+
+        cpu->dispatch.simulate_counter = 1;
+
+
         /* Copy data from decode latch to execute latch*/
         cpu->execute = cpu->dispatch;
         cpu->dispatch.has_insn = FALSE;
@@ -1195,6 +1223,21 @@ void dispatch_to_BQ(APEX_CPU *cpu, BQ_Entry *bq_entry) {
     bq_entry->target_address = 0;
     bq_entry->is_used = 1;
     bq_entry->index = cpu->counter;
+
+    if (cpu->data_forward[0].flag) {
+        bq_entry->src1_value = cpu->data_forward[0].data;
+        bq_entry->src1_valid_bit = TRUE;
+    }
+
+    if (cpu->data_forward[1].flag) {
+        bq_entry->src2_value = cpu->data_forward[1].data;
+        bq_entry->src2_valid_bit = TRUE;
+    }
+
+    // Clear forwarding information
+    cpu->data_forward[0].flag = 0;
+    cpu->data_forward[1].flag = 0;
+
 }
 static void
 APEX_LSQ(APEX_CPU *cpu)
@@ -1369,30 +1412,36 @@ APEX_decode(APEX_CPU *cpu)
             }
         }
 
-        /* if (cpu->decode.is_bq) {
-            cpu->bq[cpu->bq_index].pc_address = cpu->decode.pc;
-            cpu->bq[cpu->bq_index].branch_prediction = cpu->decode.result_buffer;
-            cpu->bq[cpu->bq_index].target_address = cpu->decode.rs1_value;
-            cpu->bq[cpu->bq_index].is_used = 1;
-            cpu->bq[cpu->bq_index].index = cpu->bq_index;
-            cpu->bq_index = (cpu->bq_index + 1) % MAX_BQ_SIZE;
-            cpu->bq_size++;
+        // Check if forwarding cycles are active
+        if (cpu->forwarding_cycles > 0) {
+            if (cpu->decode.is_used && cpu->decode.is_bq) {
+                // Check if forwarding data is valid
+                if (cpu->data_forward[0].flag) {
+                    cpu->decode.rs1_value = cpu->data_forward[0].data;
+                    cpu->decode.is_empty_rs1 = FALSE;
+                }
+
+                // Check if both sources have been forwarded
+                if (cpu->data_forward[1].flag) {
+                    cpu->decode.rs2_value = cpu->data_forward[1].data;
+                    cpu->decode.is_empty_rs2 = FALSE;
+                }
+
+                // Clear forwarding information
+                cpu->data_forward[0].flag = 0;
+                cpu->data_forward[1].flag = 0;
+            }
+
+            // Decrement forwarding cycles
+            cpu->forwarding_cycles--;
+        } else {
+            // Check if instruction is used and in the branch queue
+            if (cpu->decode.is_used && cpu->decode.is_bq) {
+                // Set forwarding cycles for tag and data broadcast
+                cpu->forwarding_cycles = 2;
+            }
         }
-        if (cpu->decode.is_iq) {
-            cpu->iq[cpu->iq_index].pc_address = cpu->decode.pc;
-            cpu->iq[cpu->iq_index].opcode = cpu->decode.opcode;
-            cpu->iq[cpu->iq_index].literal = cpu->decode.imm;
-            cpu->iq[cpu->iq_index].src1_valid_bit = !cpu->decode.is_empty_rs1;
-            cpu->iq[cpu->iq_index].src1_tag = cpu->decode.rs1;
-            cpu->iq[cpu->iq_index].src1_value = cpu->decode.rs1_value;
-            cpu->iq[cpu->iq_index].src2_valid_bit = !cpu->decode.is_empty_rs2;
-            cpu->iq[cpu->iq_index].src2_tag = cpu->decode.rs2;
-            cpu->iq[cpu->iq_index].src2_value = cpu->decode.rs2_value;
-            cpu->iq[cpu->iq_index].dest = cpu->decode.rd;
-            cpu->iq[cpu->iq_index].allocated = 1;
-            cpu->iq_index = (cpu->iq_index + 1) % MAX_IQ_SIZE;
-            cpu->iq_size++;
-        } */
+        cpu->decode.simulate_counter = 1;
 
         /* Copy data from decode latch to execute latch*/
         cpu->dispatch = cpu->decode;
@@ -2295,6 +2344,8 @@ APEX_cpu_init(const char *filename)
 
     cpu->counter = 0;
     cpu->index = 0;
+
+    cpu->forwarding_cycles = 0;
 
     cpu->ROB_queue.ROB_head = -1;
     cpu->ROB_queue.ROB_tail = -1;

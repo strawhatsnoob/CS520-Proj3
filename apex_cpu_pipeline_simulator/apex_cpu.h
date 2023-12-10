@@ -55,6 +55,7 @@ typedef struct CPU_Stage
     int ps2;
     int is_bq;
     int is_iq;
+    int is_used;
 } CPU_Stage;
 
 typedef struct BTB {
@@ -210,6 +211,7 @@ typedef struct APEX_CPU
     int bq_index;
     int iq_size;
     int iq_index;
+    int forwarding_cycles;
 } APEX_CPU;
 
 
