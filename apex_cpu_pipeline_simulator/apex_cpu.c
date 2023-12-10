@@ -805,7 +805,11 @@ static void fetch_LSQ_Entry(APEX_CPU *cpu){
 }
 
 static int isLSQFull(APEX_CPU *cpu) {
-    return (cpu->lsq.numberOfEntries < 16);
+    if (cpu->lsq.numberOfEntries < 16) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 static int isLSQEmpty(APEX_CPU *cpu) {
@@ -823,7 +827,6 @@ static void LSQ_enqueue(APEX_CPU *cpu) {
 
     cpu->lsq.rear = (cpu->lsq.rear + 1) % 16; // Circular increment
     cpu->lsq.entries[cpu->lsq.rear] = cpu->entry;
-    cpu->lsq.numberOfEntries++;
 
 }
 
@@ -977,7 +980,7 @@ static void LSQEntryLoad(APEX_CPU *cpu){
  */
 static void
 APEX_dispatch(APEX_CPU *cpu) {
-    if(cpu->dispatch.has_insn && isLSQFull(cpu) && isFull(cpu)) {
+    if(cpu->dispatch.has_insn && !isLSQFull(cpu) && !isFull(cpu)) {
         switch (cpu->decode.opcode)
         {
             case OPCODE_ADD:
@@ -1107,7 +1110,9 @@ APEX_dispatch(APEX_CPU *cpu) {
         }
 
         /* Copy data from decode latch to execute latch*/
-        cpu->execute = cpu->dispatch;
+    
+        cpu->lsqStage = cpu->dispatch;
+
         cpu->dispatch.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
@@ -1122,33 +1127,44 @@ APEX_dispatch(APEX_CPU *cpu) {
 static void
 APEX_LSQ(APEX_CPU *cpu)
 {
-    LSQ_enqueue(cpu);
+    if(cpu->lsqStage.has_insn && cpu->lsq.numberOfEntries > 0){
+        LSQ_enqueue(cpu);
 
     //CHECKING CONDITION 1
 
     if(cpu->entry.validBitMemoryAddress == 0){
         //checking contition 2
 
-        if(cpu->memory_address != -1){
-             cpu->entry.memoryAddress = cpu->memory_address;
-             cpu->memory_address = -1;
-        }
-
-        
-
-        if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].lsq_index == cpu->lsq.entries[cpu->lsq.front].entryIndex){
-
-            if(isLSQEmpty(cpu)){
-                return;
+            if(cpu->memory_address != -1){
+                cpu->entry.memoryAddress = cpu->memory_address;
+                cpu->memory_address = -1;
             }
 
-            LSQEntry checkedEntry = LSQ_dequeue(cpu);
+            
 
+            if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].lsq_index == cpu->lsq.entries[cpu->lsq.front].entryIndex){
+
+                if(isLSQEmpty(cpu)){
+                    return;
+                }
+
+                LSQEntry checkedEntry = LSQ_dequeue(cpu);
+                cpu->mau = cpu->lsqStage;
+                cpu->lsqStage.has_insn = FALSE;
+
+                if (ENABLE_DEBUG_MESSAGES)
+                {
+                    display_stage_content("LSQ/RF", &cpu->lsqStage);
+                }
+                
+
+            }
+        
+
+        
         }
-       
-
-    
     }
+    
 }
 
 
@@ -2248,6 +2264,7 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_BFU(cpu);
         APEX_AFU(cpu);
         APEX_dispatch(cpu);
+        APEX_LSQ(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
 
