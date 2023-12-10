@@ -40,6 +40,56 @@ typedef struct IQ_Entries {
     int is_used;
 }IQ_Entries;
 
+typedef struct AFU_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}AFU_Data_Forward;
+
+typedef struct BFU_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}BFU_Data_Forward;
+
+typedef struct MulFu_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}MulFu_Data_Forward;
+
+typedef struct IntFu_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}IntFu_Data_Forward;
+
+typedef struct MAU_Data_Forward {
+    int physical_address;
+    int data;
+    int dest_data;
+    int updated_src_data;
+    int zero_flag;
+    int positive_flag;
+    int is_allocated;
+}MAU_Data_Forward;
+
 /* Model of CPU stage latch */
 typedef struct CPU_Stage
 {
@@ -71,6 +121,11 @@ typedef struct CPU_Stage
     int is_bq;
     int is_iq;
     IQ_Entries iq_entry;
+    // AFU_Data_Forward afu_data;
+    // BFU_Data_Forward bfu_data;
+    // IntFu_Data_Forward intfu_data;
+    // MulFu_Data_Forward mulfu_data;
+    // MAU_Data_Forward mau_data;
 } CPU_Stage;
 
 typedef struct BTB {
@@ -91,6 +146,8 @@ typedef struct Register_Rename {
 typedef struct Data_Forward {
     int physical_address;
     int data;
+    int dest_data;
+    int updated_src_data;
     int flag;
     int is_allocated;
 }Data_Forward;
@@ -168,6 +225,11 @@ typedef struct APEX_CPU
     int free_list;
     int prev_dest;
     int memory_address;
+    int has_afu_data;
+    int has_bfu_data;
+    int has_intfu_data;
+    int has_mau_data;
+    int has_mulfu_data;
 
     /* Pipeline stages */
     CPU_Stage fetch;
@@ -182,6 +244,7 @@ typedef struct APEX_CPU
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
+    // CPU_Stage data_forward_bus;
 
 
     BTB branch_target_buffer[8];
@@ -193,6 +256,11 @@ typedef struct APEX_CPU
     ROB_Queue ROB_queue;
     LSQ lsq;
     LSQEntry entry;
+    AFU_Data_Forward afu_data;
+    BFU_Data_Forward bfu_data;
+    IntFu_Data_Forward intfu_data;
+    MulFu_Data_Forward mulfu_data;
+    MAU_Data_Forward mau_data;
     
     BQ_Entry bq[MAX_BQ_SIZE];
     int bq_size;
