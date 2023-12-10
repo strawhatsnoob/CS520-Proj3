@@ -351,6 +351,26 @@ APEX_fetch(APEX_CPU *cpu)
             cpu->fetch.is_btb_hit = 0;
         }
 
+        // Check for BQ instructions and set is_bq to 1 or is_iq to 1
+        if (cpu->fetch.has_insn) {
+            if (cpu->fetch.opcode == OPCODE_BZ || cpu->fetch.opcode == OPCODE_BNZ || cpu->fetch.opcode == OPCODE_BN || cpu->fetch.opcode == OPCODE_BNN || cpu->fetch.opcode == OPCODE_BP || cpu->fetch.opcode == OPCODE_BNP || cpu->fetch.opcode == OPCODE_JUMP || cpu->fetch.opcode == OPCODE_JALR) {
+                cpu->fetch.is_bq = 1;
+            }
+            else {
+                cpu->fetch.is_iq = 1;
+            }
+        }
+
+        // Check for BQ and IQ instructions and set is_bq to 1 or is_iq to 1
+        if (cpu->fetch.has_insn) {
+            if (cpu->fetch.opcode == OPCODE_BZ || cpu->fetch.opcode == OPCODE_BNZ || cpu->fetch.opcode == OPCODE_BN || cpu->fetch.opcode == OPCODE_BNN || cpu->fetch.opcode == OPCODE_BP || cpu->fetch.opcode == OPCODE_BNP || cpu->fetch.opcode == OPCODE_JUMP || cpu->fetch.opcode == OPCODE_JALR) {
+                cpu->fetch.is_bq = 1;
+            }
+            else {
+                cpu->fetch.is_iq = 1;
+            }
+        }
+        
         /* Copy data from fetch latch to decode latch*/
         cpu->decode = cpu->fetch;
         printf("fetch %d", cpu->decode.has_insn);
@@ -1098,6 +1118,12 @@ APEX_dispatch(APEX_CPU *cpu) {
                 break;
             }
         }
+        if (cpu->bq_size > 0) {
+            int index = cpu->bq[0].index;
+            cpu->bq[index].is_used = 0;
+            cpu->bq_size--;
+            cpu->fetch.pc = cpu->bq[index].target_address;
+        }
 
         /* Copy data from decode latch to execute latch*/
         cpu->execute = cpu->dispatch;
@@ -1285,14 +1311,41 @@ APEX_decode(APEX_CPU *cpu)
             }
         }
 
+        if (cpu->decode.is_bq) {
+            cpu->bq[cpu->bq_index].pc_address = cpu->decode.pc;
+            cpu->bq[cpu->bq_index].branch_prediction = cpu->decode.result_buffer;
+            cpu->bq[cpu->bq_index].target_address = cpu->decode.rs1_value;
+            cpu->bq[cpu->bq_index].is_used = 1;
+            cpu->bq[cpu->bq_index].index = cpu->bq_index;
+            cpu->bq_index = (cpu->bq_index + 1) % MAX_BQ_SIZE;
+            cpu->bq_size++;
+        }
+        if (cpu->decode.is_iq) {
+            cpu->iq[cpu->iq_index].pc_address = cpu->decode.pc;
+            cpu->iq[cpu->iq_index].opcode = cpu->decode.opcode;
+            cpu->iq[cpu->iq_index].literal = cpu->decode.imm;
+            cpu->iq[cpu->iq_index].src1_valid_bit = !cpu->decode.is_empty_rs1;
+            cpu->iq[cpu->iq_index].src1_tag = cpu->decode.rs1;
+            cpu->iq[cpu->iq_index].src1_value = cpu->decode.rs1_value;
+            cpu->iq[cpu->iq_index].src2_valid_bit = !cpu->decode.is_empty_rs2;
+            cpu->iq[cpu->iq_index].src2_tag = cpu->decode.rs2;
+            cpu->iq[cpu->iq_index].src2_value = cpu->decode.rs2_value;
+            cpu->iq[cpu->iq_index].dest = cpu->decode.rd;
+            cpu->iq[cpu->iq_index].allocated = 1;
+            cpu->iq_index = (cpu->iq_index + 1) % MAX_IQ_SIZE;
+            cpu->iq_size++;
+        }
+
         /* Copy data from decode latch to execute latch*/
         cpu->dispatch = cpu->decode;
         cpu->decode.has_insn = FALSE;
+
 
         if (ENABLE_DEBUG_MESSAGES)
         {
             display_stage_content("Decode/RF", &cpu->decode);
         }
+
     }
 }
 
@@ -1403,7 +1456,6 @@ static void APEX_AFU(APEX_CPU *cpu) {
         }
         }
 }
-
 /*
  * Execute Stage of APEX Pipeline
  *
@@ -2090,6 +2142,18 @@ APEX_writeback(APEX_CPU *cpu)
     return 0;
 }
 
+void init_bq(APEX_CPU *cpu) {
+    for (int i = 0; i < MAX_BQ_SIZE; i++) {
+        cpu->bq[i].is_used = 0;
+    }
+    cpu->bq_size = 0;
+}
+void init_iq(APEX_CPU *cpu) {
+    for (int i = 0; i < MAX_IQ_SIZE; i++) {
+        cpu->iq[i].is_used = 0;
+    }
+    cpu->iq_size = 0;
+}
 /*
  * This function creates and initializes APEX cpu.
  *
@@ -2100,8 +2164,6 @@ APEX_cpu_init(const char *filename)
 {
     int i;
     APEX_CPU *cpu;
-
-
     if (!filename)
     {
         return NULL;
@@ -2165,13 +2227,13 @@ APEX_cpu_init(const char *filename)
     }
     cpu->physical_queue_length = physical_queue_length;
 
-    cpu->bq_size = 4;
-    cpu->bq_head = 0;
-    cpu->bq_tail = 0;
 
-    cpu->iq_size = 16;
-    cpu->iq_head = 0;
-    cpu->iq_tail = 0;
+    cpu->bq_size = 0;
+    cpu->bq_index = 0;
+    cpu->iq_index = 0;
+    init_bq(cpu);
+    init_iq(cpu);
+
 
     cpu->counter = 0;
     cpu->index = 0;
@@ -2234,12 +2296,6 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_decode(cpu);
         APEX_fetch(cpu);
 
-        // Issue instructions from BQ and IQ
-        // APEX_cpu_issue_instructions(cpu);
-
-        // Dispatch instructions to BQ and IQ
-        // APEX_cpu_dispatch_instructions(cpu);
-
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
         printf("Z %d \n", cpu->zero_flag);
@@ -2256,88 +2312,14 @@ APEX_cpu_run(APEX_CPU *cpu)
                 break;
             }
         }
+        cpu->bq_index = 0;
+        cpu->bq_size = 0;
+        cpu->iq_index = 0;
+        cpu->iq_size = 0;
 
         cpu->clock++;
         cpu->counter++;
     }
-}
-
-void APEX_cpu_dispatch(APEX_CPU *cpu, CPU_Stage *stage) {
-    // Check for branch instructions (BZ, BNZ, BP, BNP, JUMP, JALR)
-    if (stage->opcode == OPCODE_BZ || stage->opcode == OPCODE_BNZ || stage->opcode == OPCODE_BP ||
-        stage->opcode == OPCODE_BNP || stage->opcode == OPCODE_JUMP || stage->opcode == OPCODE_JALR) {
-        
-        // Dispatch to Branch Instruction Queue (BQ)
-        if (cpu->bq_tail < cpu->bq_size) {
-            cpu->bq[cpu->bq_tail] = *stage;
-            cpu->bq_tail++;
-        } else {
-            fprintf(stderr, "Error: Branch Instruction Queue (BQ) is full. Instruction cannot be dispatched.\n");
-        }
-    } else {
-        // Dispatch to Instruction Queue (IQ)
-        if (cpu->iq_tail < cpu->iq_size) {
-            cpu->iq[cpu->iq_tail] = *stage;
-            cpu->iq_tail++;
-        } else {
-            fprintf(stderr, "Error: Instruction Queue (IQ) is full. Instruction cannot be dispatched.\n");
-        }
-    }
-}
-
-
-void APEX_cpu_dispatch_instructions(APEX_CPU *cpu) {
-    // Dispatch instructions from BQ
-    for (int i = 0; i < cpu->bq_size; ++i) {
-        if (cpu->bq[i].has_insn && !cpu->bq[i].simulator_flag) {
-            APEX_cpu_dispatch(cpu, &cpu->bq[i]);
-        }
-    }
-
-    // Dispatch instructions from IQ
-    for (int i = 0; i < cpu->iq_size; ++i) {
-        if (cpu->iq[i].has_insn && !cpu->iq[i].simulator_flag) {
-            APEX_cpu_dispatch(cpu, &cpu->iq[i]);
-        }
-    }
-}
-
-void APEX_cpu_issue_instructions(APEX_CPU *cpu) {
-    // Check if there are instructions in BQ
-    if (cpu->bq_head != -1) {
-        cpu->fetch = cpu->bq[cpu->bq_head];
-
-        // Update BQ-related data structures
-        if (cpu->bq_head == cpu->bq_tail) {
-            cpu->bq_head = cpu->bq_tail = -1; // BQ becomes empty
-        } else {
-            cpu->bq_head = (cpu->bq_head + 1) % cpu->bq_size;
-        }
-
-    }
-
-    // Check if there is space in IQ and there are instructions ready to issue
-    if (cpu->iq_head != -1) {
-        cpu->decode = cpu->iq[cpu->iq_head];
-
-        // Update IQ-related data structures
-        if (cpu->iq_head == cpu->iq_tail) {
-            cpu->iq_head = cpu->iq_tail = -1; // IQ becomes empty
-        } else {
-            cpu->iq_head = (cpu->iq_head + 1) % cpu->iq_size;
-        }
-
-        /* if (cpu->rename_table[cpu->decode.rd] == -1) {
-            // Physical register is available, use it
-            cpu->rename_table[cpu->decode.rd] = cpu->free_physical_regs[0];
-            cpu->free_physical_regs[0] = cpu->free_physical_regs[1];
-            cpu->free_physical_regs[1] = cpu->free_physical_regs[2];
-            // Clear the entry in the free list
-            cpu->free_physical_regs[2] = -1;
-        } */
-    }
-
-    
 }
 
 
