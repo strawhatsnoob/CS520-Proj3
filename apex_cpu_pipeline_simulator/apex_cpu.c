@@ -1106,12 +1106,12 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_BNP:
             {
                 for(int i = 0; i < 16; i++) {
-                    if(cpu->iq_entries[i].allocated == 0) {
-                        cpu->iq_entries[i].allocated = 1;
-                        cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
-                        cpu->iq_entries[i].dest = cpu->dispatch.pd;
-                        cpu->iq_entries[i].src1_valid_bit = 1;
-                        cpu->iq_entries[i].src2_valid_bit = 1;
+                    if(cpu->bq[i].allocated == 0) {
+                        cpu->bq[i].allocated = 1;
+                        cpu->bq[i].opcode = cpu->dispatch.opcode;
+                        cpu->bq[i].dest = cpu->dispatch.pd;
+                        cpu->bq[i].src1_valid_bit = 1;
+                        cpu->bq[i].src2_valid_bit = 1;
                     }
                 }
                 initialize_R2R_rob_entry(cpu);
@@ -1125,6 +1125,24 @@ APEX_dispatch(APEX_CPU *cpu) {
             cpu->fetch.pc = cpu->bq[index].target_address;
         }
 
+        if (cpu->dispatch.has_insn) {
+            int issue_ready = check_issue_ready(cpu->dispatch);
+
+            if (issue_ready) {
+                if (is_branch_instruction(cpu->dispatch.opcode)) {
+                    // Dispatch to Branch Queue (BQ)
+                    dispatch_to_BQ(cpu, &cpu->bq[cpu->bq_index]);
+                    cpu->bq_index = (cpu->bq_index + 1) % 16;
+                    cpu->bq_size++;
+                } else {
+                    // Dispatch to Issue Queue (IQ)
+                    dispatch_to_IQ(cpu, &cpu->iq_entries[cpu->iq_index]);
+                    cpu->iq_index = (cpu->iq_index + 1) % 24;
+                    cpu->iq_size++;
+                }
+            }
+        }
+
         /* Copy data from decode latch to execute latch*/
         cpu->execute = cpu->dispatch;
         cpu->dispatch.has_insn = FALSE;
@@ -1136,8 +1154,48 @@ APEX_dispatch(APEX_CPU *cpu) {
     }
 }
 
+int is_branch_instruction(int opcode) {
+    return (opcode == OPCODE_BZ || opcode == OPCODE_BNZ || opcode == OPCODE_JUMP || opcode == OPCODE_JALR);
+}
 
+int check_issue_ready(CPU_Stage stage) {
+    return (stage.is_empty_rs1 || stage.rs1_value) &&
+           (stage.is_empty_rs2 || stage.rs2_value);
+}
 
+void dispatch_to_IQ(APEX_CPU *cpu, IQ_Entries *iq_entry) {
+    iq_entry->allocated = 1;
+    iq_entry->opcode = cpu->dispatch.opcode;
+    iq_entry->literal = cpu->dispatch.imm;
+    iq_entry->src1_valid_bit = !cpu->dispatch.is_empty_rs1;
+    iq_entry->src1_tag = cpu->dispatch.rs1;
+    iq_entry->src1_value = cpu->dispatch.rs1_value;
+    iq_entry->src2_valid_bit = !cpu->dispatch.is_empty_rs2;
+    iq_entry->src2_tag = cpu->dispatch.rs2;
+    iq_entry->src2_value = cpu->dispatch.rs2_value;
+    iq_entry->dest = cpu->dispatch.rd;
+    iq_entry->pc_address = cpu->dispatch.pc;
+    iq_entry->is_used = 1;
+    iq_entry->dispatch_time = cpu->counter;
+}
+
+void dispatch_to_BQ(APEX_CPU *cpu, BQ_Entry *bq_entry) {
+    bq_entry->allocated = 1;
+    bq_entry->opcode = cpu->dispatch.opcode;
+    bq_entry->literal = cpu->dispatch.imm;
+    bq_entry->src1_valid_bit = !cpu->dispatch.is_empty_rs1;
+    bq_entry->src1_tag = cpu->dispatch.rs1;
+    bq_entry->src1_value = cpu->dispatch.rs1_value;
+    bq_entry->src2_valid_bit = !cpu->dispatch.is_empty_rs2;
+    bq_entry->src2_tag = cpu->dispatch.rs2;
+    bq_entry->src2_value = cpu->dispatch.rs2_value;
+    bq_entry->dest = cpu->dispatch.rd;
+    bq_entry->pc_address = cpu->dispatch.pc;
+    bq_entry->branch_prediction = 0;
+    bq_entry->target_address = 0;
+    bq_entry->is_used = 1;
+    bq_entry->index = cpu->counter;
+}
 static void
 APEX_LSQ(APEX_CPU *cpu)
 {
@@ -1311,7 +1369,7 @@ APEX_decode(APEX_CPU *cpu)
             }
         }
 
-        if (cpu->decode.is_bq) {
+        /* if (cpu->decode.is_bq) {
             cpu->bq[cpu->bq_index].pc_address = cpu->decode.pc;
             cpu->bq[cpu->bq_index].branch_prediction = cpu->decode.result_buffer;
             cpu->bq[cpu->bq_index].target_address = cpu->decode.rs1_value;
@@ -1334,7 +1392,7 @@ APEX_decode(APEX_CPU *cpu)
             cpu->iq[cpu->iq_index].allocated = 1;
             cpu->iq_index = (cpu->iq_index + 1) % MAX_IQ_SIZE;
             cpu->iq_size++;
-        }
+        } */
 
         /* Copy data from decode latch to execute latch*/
         cpu->dispatch = cpu->decode;
@@ -2143,14 +2201,14 @@ APEX_writeback(APEX_CPU *cpu)
 }
 
 void init_bq(APEX_CPU *cpu) {
-    for (int i = 0; i < MAX_BQ_SIZE; i++) {
+    for (int i = 0; i < 16; i++) {
         cpu->bq[i].is_used = 0;
     }
     cpu->bq_size = 0;
 }
 void init_iq(APEX_CPU *cpu) {
-    for (int i = 0; i < MAX_IQ_SIZE; i++) {
-        cpu->iq[i].is_used = 0;
+    for (int i = 0; i < 24; i++) {
+        cpu->iq_entries[i].is_used = 0;
     }
     cpu->iq_size = 0;
 }

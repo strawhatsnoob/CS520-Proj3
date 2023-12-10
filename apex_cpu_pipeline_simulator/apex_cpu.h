@@ -92,14 +92,27 @@ typedef struct IQ_Entries {
     int dest;
     int pc_address;
     int is_used;
+    int dispatch_time;
+    int elapsed_cycles_at_dispatch;
 }IQ_Entries;
 
 typedef struct BQ_Entry {
+    int allocated;
+    int opcode;
+    int literal;
+    int src1_valid_bit;
+    int src1_tag;
+    int src1_value;
+    int src2_valid_bit;
+    int src2_tag;
+    int src2_value;
+    int dest;
     int pc_address;
     int branch_prediction;
     int target_address;
     int is_used;
     int index;
+    int elapsed_cycles_at_dispatch;
 } BQ_Entry;
 
 typedef struct ROB_Entries {
@@ -192,10 +205,9 @@ typedef struct APEX_CPU
     LSQ lsq;
     LSQEntry entry;
     
-    BQ_Entry bq[MAX_BQ_SIZE];
+    BQ_Entry bq[16];
     int bq_size;
     int bq_index;
-    IQ_Entries iq[MAX_IQ_SIZE];
     int iq_size;
     int iq_index;
 } APEX_CPU;
@@ -207,4 +219,8 @@ void APEX_cpu_run(APEX_CPU *cpu);
 void APEX_cpu_stop(APEX_CPU *cpu);
 void init_bq(APEX_CPU *cpu);
 void init_iq(APEX_CPU *cpu);
+void dispatch_to_BQ(APEX_CPU *cpu, BQ_Entry *bq_entry);
+void dispatch_to_IQ(APEX_CPU *cpu, IQ_Entries *iq_entry);
+int is_branch_instruction(int opcode);
+int check_issue_ready(CPU_Stage stage);
 #endif
