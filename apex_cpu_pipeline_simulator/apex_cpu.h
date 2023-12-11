@@ -111,6 +111,17 @@ typedef struct MAU_Data_Forward {
     int is_allocated;
 }MAU_Data_Forward;
 
+typedef struct LSQEntry{
+    int lsqEntryEstablished;
+    int isLoadStore;
+    int validBitMemoryAddress;
+    unsigned int memoryAddress;
+    int destRegAddressForLoad;               
+    int srcDataValidBit;
+    int srcTag;  
+    int entryIndex;
+} LSQEntry;
+
 /* Model of CPU stage latch */
 typedef struct CPU_Stage
 {
@@ -144,7 +155,7 @@ typedef struct CPU_Stage
     int is_used;
 
     IQ_Entries iq_entry;
-    IQ_Entries iq_afu;
+    LSQEntry dqLsq;
     IQ_Entries iq_mulfu;
     IQ_Entries iq_intfu;
     BQ_Entry bq_bfu;
@@ -196,16 +207,6 @@ typedef struct ROB_Queue {
     int ROB_tail;
     int capacity;
 }ROB_Queue;
-
-typedef struct LSQEntry{
-    int lsqEntryEstablished;
-    int isLoadStore;
-    int validBitMemoryAddress;
-    unsigned int memoryAddress;
-    int destRegAddressForLoad;               
-    int srcDataValidBit;
-    int srcTag;  
-} LSQEntry;
 
 typedef struct LSQ {
     int numberOfEntries;
@@ -260,6 +261,7 @@ typedef struct APEX_CPU
     CPU_Stage mau;
     CPU_Stage intfu;
     CPU_Stage rob;
+    CPU_Stage lsqStage;
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
