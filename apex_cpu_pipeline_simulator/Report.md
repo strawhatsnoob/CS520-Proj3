@@ -1,14 +1,29 @@
 Project-3
 
 Group members:
-Karthick Gunasekar
+Karthick Gunasekar - B00976718
 Mukunthan Sriram Balaji - B00946990
-Shruti Dhande
+Shruti Dhande - B00983135
 
 Contributions:
 
 Mukunthan Sriram Balaji:
-I've implemented the Load/Store queue, Reorder buffer and Memory Access Unit in this project. The LSQ implementation was carried out through different stages of the out-of-order APEX simulator like dispatch, LSQ and MAU. LSQ and LSQEntry structs were initiated in the 'apex_cpu.h' file. A separate stage called LSQ has been implemented in 'apex_cpu.c' file to implement the LSQ stage logic.
+ I've implemented the Load/Store queue, Reorder buffer and Memory Access Unit in this project. The LSQ implementation was carried out through different stages of the out-of-order APEX simulator like dispatch, LSQ and MAU. LSQ and LSQEntry structs were initiated in the 'apex_cpu.h' file. A separate stage called LSQ has been implemented in 'apex_cpu.c' file to implement the LSQ stage logic.
+
+I've initialized two functions called 'LSQEntryStore()' and 'LSQEntryLoad()' for the implementations of 'LOAD' and 'STORE' commands in the dispatch stage. If the value is available at the time of dispatching the STORE, the value is read out from the PRF and inserted into the LSQ entry that is being set up for the STORE this happens in the Dispatch stage. So after the instruction reaches the 'dispatch' stage, after reading the values via data forwarding/ after register renaming, IQ entries are initialized and the LSQ entry initialization and LSQ enqueue operation is executed in the LOAD/STORE case inside the dispatch section.
+
+Post that, the the values are transfered from the dispatch stage to the LSQ stage. In the LSQ stage, the validity of the memory addess has been checked as the 'conditon 1' and 'ROB entry index' is compared with the 'LSQ entry index' to execute memory operations in the MAU stage.
+
+Shruti Dhande:
+I've successfully incorporated separate Branch (BQ) and Instruction (IQ) Queues in the proposed processor architecture, preferring the earliest dispatched instruction for simultaneous readiness. For conditional branches based on BTB predictions, speculative execution is permitted, including checkpointing for recovery in the event of a misprediction.
+
+I've included an elapsed cycle counter to handle functional unit contention, granting priority depending on the earliest dispatch time. The BQ and IQ entries are designed to enable a wide range of instruction types, including conditional branches and jumps.
+
+A FIFO-based register allocation maintains physical registers effectively, and all registers are initialized as invalid at startup. The IQ and BQ are both set to zero. Forwarding is optimized, with tag and data broadcasts consuming one clock cycle each, and IQ logic efficiently picking and dispatching instructions.
+
+The IQ efficiently requests functional unit execution upon operand availability, and the wakeup mechanism effectively broadcasts instructions for dependent calculations.
+
+In conclusion, the implemented solution features efficient queuing, speculative execution, and optimized register allocation, exhibiting a well-structured and functioning processor architecture.
 
 Karthick Gunasekar:
 Following are my contributions in the project:

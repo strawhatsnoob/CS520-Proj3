@@ -53,8 +53,6 @@
 /* Set this flag to 1 to enable cycle single-step mode */
 #define ENABLE_SINGLE_STEP 1
 
-#define MAX_BQ_SIZE 16
-#define MAX_IQ_SIZE 16
 
 
 #endif
