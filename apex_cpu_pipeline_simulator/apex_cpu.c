@@ -2422,6 +2422,7 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_MulFu(cpu);
         APEX_IntFu(cpu);
         APEX_dispatch(cpu);
+        APEX_LSQ(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
 
