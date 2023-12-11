@@ -153,8 +153,6 @@ typedef struct Data_Forward {
     int flag;
     int is_allocated;
 }Data_Forward;
-
-<<<<<<< HEAD
 typedef struct IQ_Entries {
     int allocated;
     int opcode;
