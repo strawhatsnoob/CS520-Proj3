@@ -2411,18 +2411,19 @@ APEX_cpu_run(APEX_CPU *cpu)
             printf("APEX_CPU: Simulation Complete, cycles = %d instructions = %d\n", cpu->clock, cpu->insn_completed);
             break;
         }
-        APEX_fetch(cpu);
-        APEX_decode(cpu);
-        APEX_dispatch(cpu);
-        APEX_IntFu(cpu);
-        APEX_MulFu(cpu);
-        APEX_BFU(cpu);
-        APEX_AFU(cpu);
-        APEX_LSQ(cpu);
-        APEX_MAU(cpu);
-        APEX_ROB(cpu);
-        APEX_memory(cpu);
+        
         APEX_execute(cpu);
+        APEX_memory(cpu);
+        APEX_ROB(cpu);
+        APEX_MAU(cpu);
+        APEX_LSQ(cpu);
+        APEX_AFU(cpu);
+        APEX_BFU(cpu);
+        APEX_MulFu(cpu);
+        APEX_IntFu(cpu);
+        APEX_dispatch(cpu);
+        APEX_decode(cpu);
+        APEX_fetch(cpu);
 
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
