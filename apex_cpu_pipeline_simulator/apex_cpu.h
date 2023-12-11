@@ -242,6 +242,7 @@ typedef struct APEX_CPU
     CPU_Stage mau;
     CPU_Stage intfu;
     CPU_Stage rob;
+    CPU_Stage lsqStage;
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
