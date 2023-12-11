@@ -690,7 +690,7 @@ static void initialize_load_rob_entry(APEX_CPU *cpu) {
         cpu->rob_entry.entry_bit = 1;
         cpu->rob_entry.dest_arch_register = cpu->dispatch.rd;
         cpu->rob_entry.dest_phsyical_register = cpu->dispatch.pd;
-        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.lsq_index = cpu->entry.entryIndex;
         cpu->rob_entry.memory_error_code = 0;
         cpu->rob_entry.pc_value = cpu->dispatch.pc;
         cpu->rob_entry.opcode = cpu->dispatch.opcode;
@@ -701,7 +701,7 @@ static void initialize_load_rob_entry(APEX_CPU *cpu) {
 static void initialize_store_rob_entry(APEX_CPU *cpu) {
     if(!isFull(cpu)) {
         cpu->rob_entry.entry_bit = 1;
-        cpu->rob_entry.lsq_index = 0;
+        cpu->rob_entry.lsq_index = cpu->entry.entryIndex;
         cpu->rob_entry.pc_value = cpu->dispatch.pc;
         cpu->rob_entry.opcode = cpu->dispatch.opcode;
     }
@@ -839,7 +839,11 @@ static void fetch_LSQ_Entry(APEX_CPU *cpu){
 }
 
 static int isLSQFull(APEX_CPU *cpu) {
-    return (cpu->lsq.numberOfEntries >= 16);
+    if (cpu->lsq.numberOfEntries < 16) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 static int isLSQEmpty(APEX_CPU *cpu) {
@@ -857,15 +861,10 @@ static void LSQ_enqueue(APEX_CPU *cpu) {
 
     cpu->lsq.rear = (cpu->lsq.rear + 1) % 16; // Circular increment
     cpu->lsq.entries[cpu->lsq.rear] = cpu->entry;
-    cpu->lsq.numberOfEntries++;
 
 }
 
 static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
-
-    // if(isLSQEmpty(cpu)){
-    //     return;
-    // }
 
     LSQEntry entry1 = cpu->lsq.entries[cpu->lsq.front];
     cpu->lsq.front = (cpu->lsq.front + 1) % 16; // Circular increment
@@ -874,11 +873,19 @@ static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
     return entry1;
 }
 
+static LSQEntry getEntryAtIndex(APEX_CPU *cpu, int index) {
+
+    return cpu->lsq.entries[(cpu->lsq.front + index) % 16];
+}
+
+
+
 static void LSQEntryStore(APEX_CPU *cpu){
 
     cpu->entry.lsqEntryEstablished = 1;
                 cpu->entry.isLoadStore = 0;
                 cpu->entry.validBitMemoryAddress = 1;
+                cpu->entry.entryIndex = cpu->lsq.numberOfEntries+1;
 
                 fetch_LSQ_Entry(cpu);
 
@@ -942,6 +949,7 @@ static void LSQEntryLoad(APEX_CPU *cpu){
 
     iq_entry_pd_ps1(cpu);
                 cpu->entry.lsqEntryEstablished = 1;
+                cpu->entry.entryIndex = cpu->lsq.numberOfEntries+1;
                     for(int i = 0; i < 24; i++) {
                     if(cpu->iq_entries[i].allocated == 0) {
                         cpu->iq_entries[i].allocated = 1;
@@ -1046,13 +1054,14 @@ APEX_dispatch(APEX_CPU *cpu) {
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 iq_entry_pd_ps1(cpu);
+                LSQEntryLoad(cpu);
                 initialize_load_rob_entry(cpu);
                 // update_rs1_with_forwarded_value(cpu);
                 // cpu->is_data_forwarded = 0;
                 // cpu->scoreBoarding[cpu->decode.rd] = 1;
                 // cpu->scoreBoarding[cpu->decode.rs1] = 1;
 
-                LSQEntryLoad(cpu);
+                
                 break;
             }
 
@@ -1075,6 +1084,7 @@ APEX_dispatch(APEX_CPU *cpu) {
             case OPCODE_STOREP:
             {
                 iq_entry_ps1_ps2(cpu);
+                LSQEntryStore(cpu);
                 initialize_store_rob_entry(cpu);
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
@@ -1084,7 +1094,7 @@ APEX_dispatch(APEX_CPU *cpu) {
                 // cpu->scoreBoarding[cpu->decode.rs1] = 1;
                 // cpu->scoreBoarding[cpu->decode.rs2] = 1;
 
-                LSQEntryStore(cpu);
+                
                 
 
                 break;   
@@ -1140,7 +1150,9 @@ APEX_dispatch(APEX_CPU *cpu) {
         }
 
         /* Copy data from decode latch to execute latch*/
-        cpu->execute = cpu->dispatch;
+    
+        cpu->lsqStage = cpu->dispatch;
+
         cpu->dispatch.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
@@ -1155,23 +1167,44 @@ APEX_dispatch(APEX_CPU *cpu) {
 static void
 APEX_LSQ(APEX_CPU *cpu)
 {
-    LSQ_enqueue(cpu);
+    if(cpu->lsqStage.has_insn && cpu->lsq.numberOfEntries > 0){
+        LSQ_enqueue(cpu);
 
     //CHECKING CONDITION 1
 
-    if(cpu->entry.validBitMemoryAddress == 0
-    // !(cpu->entry.isLoadStore == NULL) && 
-    // !(cpu->entry.destRegAddressForLoad == NULL) && 
-    // !(cpu->entry.memoryAddress == NULL) && 
-    // cpu->entry.srcDataValidBit != NULL && 
-    // cpu->entry.srcTag != NULL &&
-    // cpu->entry.lsqEntryEstablished != NULL
-    ){
+    if(cpu->entry.validBitMemoryAddress == 0){
         //checking contition 2
 
+            if(cpu->memory_address != -1){
+                cpu->entry.memoryAddress = cpu->memory_address;
+                cpu->memory_address = -1;
+            }
 
-    
+            
+
+            if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].lsq_index == cpu->lsq.entries[cpu->lsq.front].entryIndex){
+
+                if(isLSQEmpty(cpu)){
+                    return;
+                }
+
+                cpu->lsqStage.dqLsq = LSQ_dequeue(cpu);
+                cpu->mau = cpu->lsqStage;
+                cpu->lsqStage.has_insn = FALSE;
+
+                if (ENABLE_DEBUG_MESSAGES)
+                {
+                    display_stage_content("LSQ/RF", &cpu->lsqStage);
+                }
+                
+
+            }
+        
+
+        
+        }
     }
+    
 }
 
 
@@ -1805,15 +1838,20 @@ static void APEX_MulFu(APEX_CPU *cpu) {
 }
 
 static void APEX_MAU(APEX_CPU *cpu) {
+    cpu->has_mau_data = FALSE;
     if(cpu->mau.has_insn) {
     int opcode = 0;
     switch(opcode) {
         case OPCODE_LOAD:
         case OPCODE_LOADP:
         {
+
+            cpu->has_mau_data = TRUE;
+            cpu->mau_data.physical_address = cpu->mau.iq_entry.dest;
                 /* Read from data memory */
             cpu->mau.result_buffer
                 = cpu->data_memory[cpu->memory_address];
+                cpu->mau_data.dest_data = cpu->mau.result_buffer;
             // cpu->memory.data_forward = cpu->memory.result_buffer;
             // printf("loadp %d", cpu->memory.data_forward);
             break;
@@ -1823,7 +1861,7 @@ static void APEX_MAU(APEX_CPU *cpu) {
         case OPCODE_STOREP:
         {
             /* Read from data memory */
-            cpu->data_memory[cpu->memory_address] = cpu->mau.rs1_value;
+            cpu->data_memory[cpu->memory_address] = cpu->mau.dqLsq.srcTag;
             break;
         }
     }
@@ -2373,14 +2411,16 @@ APEX_cpu_run(APEX_CPU *cpu)
             printf("APEX_CPU: Simulation Complete, cycles = %d instructions = %d\n", cpu->clock, cpu->insn_completed);
             break;
         }
-        APEX_memory(cpu);
+        
         APEX_execute(cpu);
+        APEX_memory(cpu);
         APEX_ROB(cpu);
-        APEX_IntFu(cpu);
         APEX_MAU(cpu);
-        APEX_MulFu(cpu);
-        APEX_BFU(cpu);
+        APEX_LSQ(cpu);
         APEX_AFU(cpu);
+        APEX_BFU(cpu);
+        APEX_MulFu(cpu);
+        APEX_IntFu(cpu);
         APEX_dispatch(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
