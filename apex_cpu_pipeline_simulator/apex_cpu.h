@@ -38,7 +38,28 @@ typedef struct IQ_Entries {
     int dest;
     int pc_address;
     int is_used;
+    int dispatch_time;
+    int elapsed_cycles_at_dispatch;
 }IQ_Entries;
+
+typedef struct BQ_Entry {
+    int allocated;
+    int opcode;
+    int literal;
+    int src1_valid_bit;
+    int src1_tag;
+    int src1_value;
+    int src2_valid_bit;
+    int src2_tag;
+    int src2_value;
+    int dest;
+    int pc_address;
+    int branch_prediction;
+    int target_address;
+    int is_used;
+    int index;
+    int elapsed_cycles_at_dispatch;
+} BQ_Entry;
 
 typedef struct AFU_Data_Forward {
     int physical_address;
@@ -123,6 +144,10 @@ typedef struct CPU_Stage
     int is_used;
 
     IQ_Entries iq_entry;
+    IQ_Entries iq_afu;
+    IQ_Entries iq_mulfu;
+    IQ_Entries iq_intfu;
+    BQ_Entry bq_bfu;
     // AFU_Data_Forward afu_data;
     // BFU_Data_Forward bfu_data;
     // IntFu_Data_Forward intfu_data;
@@ -153,42 +178,6 @@ typedef struct Data_Forward {
     int flag;
     int is_allocated;
 }Data_Forward;
-typedef struct IQ_Entries {
-    int allocated;
-    int opcode;
-    int literal;
-    int src1_valid_bit;
-    int src1_tag;
-    int src1_value;
-    int src2_valid_bit;
-    int src2_tag;
-    int src2_value;
-    int dest;
-    int pc_address;
-    int is_used;
-    int dispatch_time;
-    int elapsed_cycles_at_dispatch;
-    int is_ready;
-}IQ_Entries;
-
-typedef struct BQ_Entry {
-    int allocated;
-    int opcode;
-    int literal;
-    int src1_valid_bit;
-    int src1_tag;
-    int src1_value;
-    int src2_valid_bit;
-    int src2_tag;
-    int src2_value;
-    int dest;
-    int pc_address;
-    int branch_prediction;
-    int target_address;
-    int is_used;
-    int index;
-    int elapsed_cycles_at_dispatch;
-} BQ_Entry;
 
 typedef struct ROB_Entries {
     int entry_bit;
@@ -259,6 +248,7 @@ typedef struct APEX_CPU
     int has_intfu_data;
     int has_mau_data;
     int has_mulfu_data;
+    int afu_entry;
 
     /* Pipeline stages */
     CPU_Stage fetch;
@@ -273,6 +263,8 @@ typedef struct APEX_CPU
     CPU_Stage execute;
     CPU_Stage memory;
     CPU_Stage writeback;
+    CPU_Stage iq_stage;
+    CPU_Stage bq_stage;
     // CPU_Stage data_forward_bus;
 
 
@@ -312,5 +304,5 @@ int is_branch_instruction(int opcode);
 int check_issue_ready(CPU_Stage stage);
 void APEX_issue_queue(APEX_CPU *cpu);
 void APEX_branch_queue(APEX_CPU *cpu);
-int check_wakeup_condition(APEX_CPU *cpu, IQ_Entries *iq_entry);
+int check_wakeup_condition_issue(APEX_CPU *cpu, IQ_Entries *iq_entry);
 #endif
