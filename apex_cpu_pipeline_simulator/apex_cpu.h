@@ -156,6 +156,7 @@ typedef struct CPU_Stage
 
     IQ_Entries iq_entry;
     LSQEntry dqLsq;
+    IQ_Entries iq_afu;
     IQ_Entries iq_mulfu;
     IQ_Entries iq_intfu;
     BQ_Entry bq_bfu;

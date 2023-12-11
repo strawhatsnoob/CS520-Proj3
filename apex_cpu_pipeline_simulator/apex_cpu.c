@@ -2676,13 +2676,13 @@ APEX_writeback(APEX_CPU *cpu)
     return 0;
 }
 
-/*void init_iq_stage(APEX_CPU *cpu) {
-    cpu->iq_stage.entry.is_used = 0;
+void init_iq_stage(APEX_CPU *cpu) {
+    cpu->iq_stage.is_used = 0;
 }
 
 void init_bq_stage(APEX_CPU *cpu) {
-    cpu->bq_stage.entry.is_used = 0;
-}*/
+    cpu->bq_stage.is_used = 0;
+}
 /*
  * This function creates and initializes APEX cpu.
  *
@@ -2760,8 +2760,8 @@ APEX_cpu_init(const char *filename)
     cpu->bq_size = 0;
     cpu->bq_index = 0;
     cpu->iq_index = 0;
-    //init_iq_stage(cpu);
-    //init_bq_stage(cpu);
+    init_iq_stage(cpu);
+    init_bq_stage(cpu);
 
 
     cpu->counter = 0;
