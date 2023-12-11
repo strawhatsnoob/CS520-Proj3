@@ -120,16 +120,14 @@ typedef struct CPU_Stage
     int ps2;
     int is_bq;
     int is_iq;
-<<<<<<< HEAD
     int is_used;
-=======
+
     IQ_Entries iq_entry;
     // AFU_Data_Forward afu_data;
     // BFU_Data_Forward bfu_data;
     // IntFu_Data_Forward intfu_data;
     // MulFu_Data_Forward mulfu_data;
     // MAU_Data_Forward mau_data;
->>>>>>> origin/main
 } CPU_Stage;
 
 typedef struct BTB {
@@ -174,8 +172,6 @@ typedef struct IQ_Entries {
     int elapsed_cycles_at_dispatch;
     int is_ready;
 }IQ_Entries;
-=======
->>>>>>> origin/main
 
 typedef struct BQ_Entry {
     int allocated;
