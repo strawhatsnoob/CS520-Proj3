@@ -1,8 +1,8 @@
 Project-3
 
 Group members:
-Karthick Gunasekar
-Mukunthan Sriram Balaji - B00946990
+Karthick Gunasekar,
+Mukunthan Sriram Balaji - B00946990,
 Shruti Dhande
 
 Contributions:
