@@ -1188,7 +1188,7 @@ APEX_LSQ(APEX_CPU *cpu)
                     return;
                 }
 
-                LSQEntry checkedEntry = LSQ_dequeue(cpu);
+                cpu->lsqStage.dqLsq = LSQ_dequeue(cpu);
                 cpu->mau = cpu->lsqStage;
                 cpu->lsqStage.has_insn = FALSE;
 
@@ -1838,12 +1838,17 @@ static void APEX_MulFu(APEX_CPU *cpu) {
 }
 
 static void APEX_MAU(APEX_CPU *cpu) {
+    cpu->has_mau_data = FALSE;
     if(cpu->mau.has_insn) {
     int opcode = 0;
     switch(opcode) {
         case OPCODE_LOAD:
         case OPCODE_LOADP:
         {
+
+            cpu->has_mau_data = TRUE;
+            cpu->mau_data.dest_data = cpu->mau.result_buffer;
+            cpu->mau_data.physical_address = cpu->mau.iq_entry.dest;
                 /* Read from data memory */
             cpu->mau.result_buffer
                 = cpu->data_memory[cpu->memory_address];
@@ -1856,7 +1861,7 @@ static void APEX_MAU(APEX_CPU *cpu) {
         case OPCODE_STOREP:
         {
             /* Read from data memory */
-            cpu->data_memory[cpu->memory_address] = cpu->mau.rs1_value;
+            cpu->data_memory[cpu->memory_address] = cpu->mau.dqLsq.srcTag;
             break;
         }
     }

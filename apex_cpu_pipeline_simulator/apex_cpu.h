@@ -90,6 +90,17 @@ typedef struct MAU_Data_Forward {
     int is_allocated;
 }MAU_Data_Forward;
 
+typedef struct LSQEntry{
+    int lsqEntryEstablished;
+    int isLoadStore;
+    int validBitMemoryAddress;
+    unsigned int memoryAddress;
+    int destRegAddressForLoad;               
+    int srcDataValidBit;
+    int srcTag;  
+    int entryIndex;
+} LSQEntry;
+
 /* Model of CPU stage latch */
 typedef struct CPU_Stage
 {
@@ -121,6 +132,7 @@ typedef struct CPU_Stage
     int is_bq;
     int is_iq;
     IQ_Entries iq_entry;
+    LSQEntry dqLsq;
     // AFU_Data_Forward afu_data;
     // BFU_Data_Forward bfu_data;
     // IntFu_Data_Forward intfu_data;
@@ -178,17 +190,6 @@ typedef struct ROB_Queue {
     int ROB_tail;
     int capacity;
 }ROB_Queue;
-
-typedef struct LSQEntry{
-    int lsqEntryEstablished;
-    int isLoadStore;
-    int validBitMemoryAddress;
-    unsigned int memoryAddress;
-    int destRegAddressForLoad;               
-    int srcDataValidBit;
-    int srcTag;  
-    int entryIndex;
-} LSQEntry;
 
 typedef struct LSQ {
     int numberOfEntries;
