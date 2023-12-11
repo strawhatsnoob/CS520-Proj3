@@ -1847,11 +1847,11 @@ static void APEX_MAU(APEX_CPU *cpu) {
         {
 
             cpu->has_mau_data = TRUE;
-            cpu->mau_data.dest_data = cpu->mau.result_buffer;
             cpu->mau_data.physical_address = cpu->mau.iq_entry.dest;
                 /* Read from data memory */
             cpu->mau.result_buffer
                 = cpu->data_memory[cpu->memory_address];
+                cpu->mau_data.dest_data = cpu->mau.result_buffer;
             // cpu->memory.data_forward = cpu->memory.result_buffer;
             // printf("loadp %d", cpu->memory.data_forward);
             break;
