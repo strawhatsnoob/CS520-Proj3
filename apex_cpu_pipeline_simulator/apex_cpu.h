@@ -292,6 +292,8 @@ typedef struct APEX_CPU
     int iq_size;
     int iq_index;
     int forwarding_cycles;
+
+    BFU_Data_Forward bfu_data_forward;
 } APEX_CPU;
 
 
