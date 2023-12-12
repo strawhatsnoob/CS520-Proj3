@@ -2088,6 +2088,8 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->bfu_data_forward.physical_address = cpu->bfu_data.physical_address;
+                cpu->bfu_data_forward.is_allocated = TRUE;
                 break;
             }
 
@@ -2135,6 +2137,8 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->bfu_data_forward.physical_address = cpu->bfu_data.physical_address;
+                cpu->bfu_data_forward.is_allocated = TRUE;
                 break;
             }
 
@@ -2178,6 +2182,8 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->bfu_data_forward.physical_address = cpu->bfu_data.physical_address;
+                cpu->bfu_data_forward.is_allocated = TRUE;
                 break;
             }
 
@@ -2221,6 +2227,9 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+
+                cpu->bfu_data_forward.physical_address = cpu->bfu_data.physical_address;
+                cpu->bfu_data_forward.is_allocated = TRUE;
                 break;
             }
 
