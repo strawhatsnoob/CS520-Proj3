@@ -399,10 +399,11 @@ static void update_src1_with_forwarded_data(APEX_CPU *cpu, int i) {
         cpu->iq_entries[i].src1_valid_bit = 1;
         cpu->iq_entries[i].src1_value = cpu->afu_data.dest_data;
     }
-    if (!cpu->has_intfu_data &&
-        cpu->intfu_data.physical_address == cpu->dispatch.ps1) {
+    if (!cpu->has_intfu_data[cpu->dispatch.ps1] &&
+        cpu->intfu_data[cpu->dispatch.ps1].physical_address == cpu->dispatch.ps1
+        && cpu->intfu_data[cpu->dispatch.ps1].is_allocated) {
         cpu->iq_entries[i].src1_valid_bit = 1;
-        cpu->iq_entries[i].src1_value = cpu->afu_data.dest_data;
+        cpu->iq_entries[i].src1_value = cpu->intfu_data[cpu->dispatch.ps1].dest_data;
     }
 }
 
@@ -417,10 +418,11 @@ static void update_src2_with_forwarded_data(APEX_CPU *cpu, int i) {
         cpu->iq_entries[i].src2_valid_bit = 1;
         cpu->iq_entries[i].src2_value = cpu->afu_data.dest_data;
     }
-    if (!cpu->has_intfu_data &&
-        cpu->intfu_data.physical_address == cpu->dispatch.ps2) {
+    if (!cpu->has_intfu_data[cpu->dispatch.ps2] &&
+        cpu->intfu_data[cpu->dispatch.ps2].physical_address == cpu->dispatch.ps2
+        && cpu->intfu_data[cpu->dispatch.ps1].is_allocated) {
         cpu->iq_entries[i].src2_valid_bit = 1;
-        cpu->iq_entries[i].src2_value = cpu->afu_data.dest_data;
+        cpu->iq_entries[i].src2_value = cpu->intfu_data[cpu->dispatch.ps1].dest_data;
     }
 }
 
@@ -443,7 +445,7 @@ int check_wakeup_condition_issue(APEX_CPU *cpu, IQ_Entries *iq_entry) {
         }
         } else {
             // Source operand is not required
-            src1_ready = 1; // Available
+            // src1_ready = 1; // Available
         }
 
         if (iq_entry->src2_valid_bit) {
@@ -460,7 +462,7 @@ int check_wakeup_condition_issue(APEX_CPU *cpu, IQ_Entries *iq_entry) {
             }
         } else {
             // Source operand is not required
-            src2_ready = 1; // Available
+            // src2_ready = 1; // Available
         }
 
         // Check if both source operands are available
@@ -540,47 +542,80 @@ int check_wakeup_condition_branch(APEX_CPU *cpu, BQ_Entry *bq_entry) {
 }
 
 
-void APEX_issue_queue(APEX_CPU *cpu) {
-    // Initialize IQ
-    for (int i = 0; i < 24; i++) {
-        cpu->iq_entries[i].is_used = 0;
-    }
-    if (cpu->iq_size > 0) {
-        // Issue instructions from the Instruction Queue
-        int issue_ready = check_issue_ready(cpu->dispatch);
-        if (issue_ready) {
-            if (!(is_branch_instruction(cpu->dispatch.opcode))) {
-                // Dispatch to Issue Queue (IQ)
-                dispatch_to_IQ(cpu, &cpu->iq_entries[cpu->iq_index]);
-                cpu->iq_index = (cpu->iq_index + 1) % 24;
-                cpu->iq_size++;
-            }
-        }
-    }  
+static void APEX_issue_queue(APEX_CPU *cpu) {
+    if(cpu->iq_stage.has_insn) {
+        // // Initialize IQ
+    // for (int i = 0; i < 24; i++) {
+    //     cpu->iq_entries[i].is_used = 0;
+    // }
+    // if (cpu->iq_size > 0) {
+    //     // Issue instructions from the Instruction Queue
+    //     int issue_ready = check_issue_ready(cpu->dispatch);
+    //     if (issue_ready) {
+    //         if (!(is_branch_instruction(cpu->dispatch.opcode))) {
+    //             // Dispatch to Issue Queue (IQ)
+    //             dispatch_to_IQ(cpu, &cpu->iq_entries[cpu->iq_index]);
+    //             cpu->iq_index = (cpu->iq_index + 1) % 24;
+    //             cpu->iq_size++;
+    //         }
+    //     }
+    // }  
     // Check if there is forwarded data
-    if (cpu->data_forward[0].flag || cpu->data_forward[1].flag) {
+    // if (cpu->data_forward[0].flag || cpu->data_forward[1].flag) {
         for (int i = 0; i < 24; i++) {
             if (cpu->iq_entries[i].allocated) {
-                if (cpu->data_forward[0].flag && cpu->iq_entries[i].src1_tag == cpu->data_forward[0].physical_address) {
-                    cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
-                    cpu->iq_entries[i].src1_valid_bit = TRUE;
-                }
+                // if (cpu->data_forward[0].flag && cpu->iq_entries[i].src1_tag == cpu->data_forward[0].physical_address) {
+                //     cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
+                //     cpu->iq_entries[i].src1_valid_bit = TRUE;
+                // }
 
-                if (cpu->data_forward[1].flag && cpu->iq_entries[i].src2_tag == cpu->data_forward[1].physical_address) {
-                    cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
-                    cpu->iq_entries[i].src2_valid_bit = TRUE;
-                }
+                // if (cpu->data_forward[1].flag && cpu->iq_entries[i].src2_tag == cpu->data_forward[1].physical_address) {
+                //     cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
+                //     cpu->iq_entries[i].src2_valid_bit = TRUE;
+                // }
 
                 // Add the forwarding logic for src1
-                update_src1_with_forwarded_data(cpu, i);
+                if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->iq_stage.ps1) {
+                    cpu->physical_register[cpu->iq_stage.ps1].data = cpu->afu_data.updated_src_data;
+                    cpu->physical_register[cpu->iq_stage.ps1].valid_bit = 1;
+                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                }
+                if(!cpu->has_mulfu_data && cpu->mulfu_data.physical_address == cpu->iq_stage.ps1) {
+                    cpu->physical_register[cpu->iq_stage.ps1].data = cpu->mulfu_data.dest_data;
+                    cpu->physical_register[cpu->iq_stage.ps1].valid_bit = 1;
+                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                }
+                if(!cpu->has_intfu_data[cpu->iq_stage.ps1] && cpu->intfu_data[cpu->iq_stage.ps1].physical_address == cpu->iq_stage.ps1
+                 && cpu->intfu_data[cpu->iq_stage.ps1].is_allocated) {
+                    cpu->physical_register[cpu->iq_stage.ps1].data = cpu->intfu_data[cpu->iq_stage.ps1].dest_data;
+                    cpu->physical_register[cpu->iq_stage.ps1].valid_bit = 1;
+                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                }
+
+                if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->iq_stage.ps2) {
+                    cpu->physical_register[cpu->iq_stage.ps2].data = cpu->afu_data.updated_src_data;
+                    cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
+                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                }
+                if(!cpu->has_mulfu_data && cpu->mulfu_data.physical_address == cpu->iq_stage.ps2) {
+                    cpu->physical_register[cpu->iq_stage.ps2].data = cpu->mulfu_data.dest_data;
+                    cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
+                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                }
+                if(!cpu->has_intfu_data[cpu->iq_stage.ps2] && cpu->intfu_data[cpu->iq_stage.ps2].physical_address == cpu->iq_stage.ps2
+                && cpu->intfu_data[cpu->iq_stage.ps2].is_allocated) {
+                    cpu->physical_register[cpu->iq_stage.ps2].data = cpu->intfu_data[cpu->iq_stage.ps2].dest_data;
+                    cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
+                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                }
             }
-        }
+        // }
     }
 
 
             // Clear forwarding information
-            cpu->data_forward[0].flag = 0;
-            cpu->data_forward[1].flag = 0;
+            // cpu->data_forward[0].flag = 0;
+            // cpu->data_forward[1].flag = 0;
 
         if (cpu->dispatch.is_used && cpu->dispatch.is_bq) {
         cpu->dispatch.simulate_counter = 1;
@@ -589,7 +624,7 @@ void APEX_issue_queue(APEX_CPU *cpu) {
         cpu->dispatch.simulate_counter = 1;  
         // Update wakeup logic for IQ entries
         for (int i = 0; i < 24; i++) {
-            if (cpu->iq_entries[i].is_used) {
+            if (cpu->iq_entries[i].allocated) {
                 // Check if the wakeup condition is met
                 if (check_wakeup_condition_issue(cpu, &cpu->iq_entries[i])) {
                     // Set the instruction as ready to execute
@@ -618,6 +653,7 @@ void APEX_issue_queue(APEX_CPU *cpu) {
                             break;
                         default:
                         {
+                            cpu->iq_entries[i].allocated = 0;
                             cpu->iq_stage.iq_intfu = cpu->iq_entries[i];
                             cpu->intfu = cpu->iq_stage;
                             break;
@@ -627,6 +663,14 @@ void APEX_issue_queue(APEX_CPU *cpu) {
                 }
             }
         }
+        cpu->iq_stage.has_insn = FALSE;
+
+
+        if (ENABLE_DEBUG_MESSAGES)
+        {
+            display_stage_content("Issue_Queue/RF", &cpu->iq_stage);
+        }
+    }
 
 }
 
@@ -756,8 +800,9 @@ static void rename_rs1(APEX_CPU *cpu) {
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
-        if(!cpu->has_intfu_data && cpu->intfu_data.physical_address == cpu->decode.ps1) {
-            cpu->physical_register[cpu->decode.ps1].data = cpu->intfu_data.dest_data;
+        if(!cpu->has_intfu_data[cpu->decode.ps1] && cpu->intfu_data[cpu->decode.ps1].physical_address == cpu->decode.ps1
+        && cpu->intfu_data[cpu->decode.ps1].is_allocated) {
+            cpu->physical_register[cpu->decode.ps1].data = cpu->intfu_data[cpu->decode.ps1].dest_data;
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
@@ -796,8 +841,9 @@ static void rename_rs2(APEX_CPU *cpu) {
             cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
-        if(!cpu->has_intfu_data && cpu->intfu_data.physical_address == cpu->decode.ps2) {
-            cpu->physical_register[cpu->decode.ps2].data = cpu->intfu_data.dest_data;
+        if(!cpu->has_intfu_data[cpu->decode.ps2] && cpu->intfu_data[cpu->decode.ps2].physical_address == cpu->decode.ps2
+        && cpu->intfu_data[cpu->decode.ps2].is_allocated) {
+            cpu->physical_register[cpu->decode.ps2].data = cpu->intfu_data[cpu->decode.ps2].dest_data;
             cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
@@ -828,6 +874,7 @@ static void iq_entry_pd_ps1_ps2(APEX_CPU *cpu) {
                 cpu->iq_entries[i].dest = cpu->dispatch.pd;
                 
                 cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                cpu->iq_entries[i].literal = cpu->dispatch.imm;
                 if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
                 cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
                     cpu->iq_entries[i].src1_valid_bit = 1;
@@ -856,6 +903,7 @@ static void iq_entry_pd_ps1(APEX_CPU *cpu) {
                 cpu->iq_entries[i].dest = cpu->dispatch.pd;
                 
                 cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                cpu->iq_entries[i].literal = cpu->dispatch.imm;
                 if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
                 cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
                     cpu->iq_entries[i].src1_valid_bit = 1;
@@ -874,6 +922,7 @@ static void iq_entry_ps1_ps2(APEX_CPU *cpu) {
                 cpu->iq_entries[i].opcode = cpu->dispatch.opcode;
 
                 cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                cpu->iq_entries[i].literal = cpu->dispatch.imm;
                 if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
                 cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
                     cpu->iq_entries[i].src1_valid_bit = 1;
@@ -901,12 +950,14 @@ static void iq_entry_ps1(APEX_CPU *cpu) {
 
                 
                 cpu->iq_entries[i].src1_tag = cpu->dispatch.ps1;
+                cpu->iq_entries[i].literal = cpu->dispatch.imm;
                 if(cpu->physical_register[cpu->dispatch.ps1].allocated == 1 && 
                 cpu->physical_register[cpu->dispatch.ps1].valid_bit == 1) {
                     cpu->iq_entries[i].src1_valid_bit = 1;
                     cpu->iq_entries[i].src1_value = cpu->physical_register[cpu->dispatch.ps1].data;
                 }
                 update_src1_with_forwarded_data(cpu, i);
+                break;
             }
         }
 }
@@ -919,6 +970,8 @@ static void iq_entry_pd(APEX_CPU *cpu) {
                 cpu->iq_entries[i].dest = cpu->dispatch.pd;
                 cpu->iq_entries[i].src1_valid_bit = 1;
                 cpu->iq_entries[i].src2_valid_bit = 1;
+                cpu->iq_entries[i].literal = cpu->dispatch.imm;
+                break;
             }
         }
 }
@@ -1039,7 +1092,7 @@ static void do_commit(Register_Rename physical_entry, int dest_address, APEX_CPU
 }
 
 static void APEX_ROB(APEX_CPU *cpu) {
-    if(cpu->rob.has_insn) {
+    if(!cpu->rob.has_insn) {
         for(int i = 0; i < 24; i++) {
             if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].entry_bit == 1 && cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register) {
                 if(cpu->physical_register[cpu->physical_queue[i]].allocated == 1) {
@@ -1047,6 +1100,13 @@ static void APEX_ROB(APEX_CPU *cpu) {
                     do_commit(cpu->physical_register[cpu->physical_queue[i]], cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_arch_register ,
                     cpu);
                     cpu->rename_table[cpu->physical_queue[i]] = -1;
+                    cpu->rob.has_insn = FALSE;
+
+
+                    if (ENABLE_DEBUG_MESSAGES)
+                    {
+                        display_stage_content("ROB/RF", &cpu->decode);
+                    }
                     break;
                 }
             }
@@ -1466,12 +1526,15 @@ APEX_dispatch(APEX_CPU *cpu) {
         /* Copy data from decode latch to execute latch*/
     
         cpu->lsqStage = cpu->dispatch;
+        cpu->iq_stage = cpu->dispatch;
+        cpu->bq_stage = cpu->dispatch;
+        cpu->rob = cpu->dispatch;
 
         cpu->dispatch.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
         {
-            display_stage_content("Dispatch/RF", &cpu->decode);
+            display_stage_content("Dispatch/RF", &cpu->dispatch);
         }
     }
 }
@@ -1774,17 +1837,17 @@ APEX_decode(APEX_CPU *cpu)
 static void set_branch_flags(APEX_CPU *cpu) {
     if (cpu->intfu.result_buffer == 0) {
         cpu->zero_flag = TRUE;
-        cpu->intfu_data.zero_flag = cpu->zero_flag;
+        cpu->intfu_data[cpu->decode.ps1].zero_flag = cpu->zero_flag;
     } else {
         cpu->zero_flag = FALSE;
-        cpu->intfu_data.zero_flag = cpu->zero_flag;
+        cpu->intfu_data[cpu->decode.ps1].zero_flag = cpu->zero_flag;
     }
     if(cpu->intfu.result_buffer > 0) {
         cpu->positive_flag = TRUE;
-        cpu->intfu_data.positive_flag = cpu->positive_flag;
+        cpu->intfu_data[cpu->decode.ps1].positive_flag = cpu->positive_flag;
     } else {
       cpu->positive_flag = FALSE;
-      cpu->intfu_data.positive_flag = cpu->positive_flag;
+      cpu->intfu_data[cpu->decode.ps1].positive_flag = cpu->positive_flag;
     }
     // if (cpu->intfu.result_buffer < 0) {
     //   cpu->negative_flag = TRUE;
@@ -2282,16 +2345,17 @@ static void APEX_MAU(APEX_CPU *cpu) {
 }
 
 static void APEX_IntFu(APEX_CPU *cpu) {
-    cpu->has_intfu_data = FALSE;
+    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = FALSE;
     if(cpu->intfu.has_insn) {
-        int opcode = 0;
+        int opcode = cpu->intfu.iq_intfu.opcode;
         switch(opcode) {
             case OPCODE_ADD:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value + cpu->intfu.iq_entry.src2_value;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value + cpu->intfu.iq_intfu.src2_value;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value + cpu->execute.rs2_value;
                     /* Set the zero flag based on the result buffer */
                     set_branch_flags(cpu);
@@ -2303,10 +2367,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_DIV:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value / cpu->intfu.iq_entry.src2_value;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value / cpu->intfu.iq_intfu.src2_value;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value / cpu->execute.rs2_value;
                     // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2318,10 +2383,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_ADDL:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value + cpu->intfu.iq_entry.literal;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value + cpu->intfu.iq_intfu.literal;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value + cpu->execute.imm;
                     // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2337,10 +2403,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_SUB:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value - cpu->intfu.iq_entry.src2_value;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value - cpu->intfu.iq_intfu.src2_value;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value - cpu->execute.rs2_value;
                     // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2352,10 +2419,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_SUBL:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value - cpu->intfu.iq_entry.literal;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value - cpu->intfu.iq_intfu.literal;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value - cpu->execute.imm;
                     // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2373,10 +2441,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_AND:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value & cpu->intfu.iq_entry.src2_value;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value & cpu->intfu.iq_intfu.src2_value;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value & cpu->execute.rs2_value;
                     // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2388,10 +2457,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_OR:
             {
-                    cpu->intfu.result_buffer = cpu->intfu.iq_entry.src1_value | cpu->intfu.iq_entry.src2_value;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->intfu.result_buffer = cpu->intfu.iq_intfu.src1_value | cpu->intfu.iq_intfu.src2_value;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value | cpu->execute.rs2_value;
                     // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2403,10 +2473,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_XOR:
             {
-                    cpu->execute.result_buffer = cpu->intfu.iq_entry.src1_value ^ cpu->intfu.iq_entry.src2_value;
-                    cpu->has_intfu_data = TRUE;
-                    cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                    cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                    cpu->execute.result_buffer = cpu->intfu.iq_intfu.src1_value ^ cpu->intfu.iq_intfu.src2_value;
+                    cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                     // = cpu->execute.rs1_value ^ cpu->execute.rs2_value;
                     cpu->intfu.data_forward = cpu->intfu.result_buffer;
                     /* Set the zero flag based on the result buffer */
@@ -2419,10 +2490,11 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_MOVC: 
             {
-                cpu->intfu.result_buffer = cpu->intfu.iq_entry.literal + 0;
-                cpu->has_intfu_data = TRUE;
-                cpu->intfu_data.dest_data = cpu->intfu.result_buffer;
-                cpu->intfu_data.physical_address = cpu->intfu.iq_entry.dest;
+                cpu->intfu.result_buffer = cpu->intfu.iq_intfu.literal + 0;
+                cpu->has_intfu_data[cpu->intfu.iq_intfu.dest] = TRUE;
+                cpu->intfu_data[cpu->intfu.iq_intfu.dest].is_allocated = TRUE;
+                cpu->intfu_data[cpu->intfu.iq_intfu.dest].dest_data = cpu->intfu.result_buffer;
+                cpu->intfu_data[cpu->intfu.iq_intfu.dest].physical_address = cpu->intfu.iq_intfu.dest;
                 // cpu->intfu.data_forward = cpu->intfu.result_buffer;
                 break;
             }
@@ -2434,38 +2506,38 @@ static void APEX_IntFu(APEX_CPU *cpu) {
 
             case OPCODE_CMP:
             {
-                if(cpu->intfu.iq_entry.src1_value > cpu->intfu.iq_entry.src2_value) {
+                if(cpu->intfu.iq_intfu.src1_value > cpu->intfu.iq_intfu.src2_value) {
                     cpu->positive_flag = TRUE;
-                    cpu->intfu_data.positive_flag = cpu->positive_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].positive_flag = cpu->positive_flag;
                 } else {
                     cpu->positive_flag = FALSE;
-                    cpu->intfu_data.positive_flag = cpu->positive_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].positive_flag = cpu->positive_flag;
                 }
-                if(cpu->intfu.iq_entry.src1_value == cpu->intfu.iq_entry.src2_value) {
+                if(cpu->intfu.iq_intfu.src1_value == cpu->intfu.iq_intfu.src2_value) {
                     cpu->zero_flag = TRUE;
-                    cpu->intfu_data.zero_flag = cpu->zero_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].zero_flag = cpu->zero_flag;
                 } else {
                     cpu->zero_flag = FALSE;
-                    cpu->intfu_data.zero_flag = cpu->zero_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].zero_flag = cpu->zero_flag;
                 }
                 break;   
             }
 
             case OPCODE_CML:
             {
-                if(cpu->intfu.iq_entry.src1_value > cpu->intfu.iq_entry.literal) {
+                if(cpu->intfu.iq_intfu.src1_value > cpu->intfu.iq_intfu.literal) {
                     cpu->positive_flag = TRUE;
-                    cpu->intfu_data.positive_flag = cpu->positive_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].positive_flag = cpu->positive_flag;
                 } else {
                     cpu->positive_flag = FALSE;
-                    cpu->intfu_data.positive_flag = cpu->positive_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].positive_flag = cpu->positive_flag;
                 }
-                if(cpu->intfu.iq_entry.src1_value == cpu->intfu.iq_entry.literal) {
+                if(cpu->intfu.iq_intfu.src1_value == cpu->intfu.iq_intfu.literal) {
                     cpu->zero_flag = TRUE;
-                    cpu->intfu_data.zero_flag = cpu->zero_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].zero_flag = cpu->zero_flag;
                 } else {
                     cpu->zero_flag = FALSE;
-                    cpu->intfu_data.zero_flag = cpu->zero_flag;
+                    cpu->intfu_data[cpu->intfu.iq_intfu.dest].zero_flag = cpu->zero_flag;
                 }
                 break;   
             }
@@ -2825,11 +2897,14 @@ APEX_cpu_run(APEX_CPU *cpu)
         APEX_BFU(cpu);
         APEX_MulFu(cpu);
         APEX_IntFu(cpu);
+        APEX_issue_queue(cpu);
         APEX_dispatch(cpu);
-        APEX_LSQ(cpu);
         APEX_decode(cpu);
         APEX_fetch(cpu);
 
+        for(int i = 0; i < 24; i++) {
+            cpu->has_intfu_data[i] = FALSE;
+        }
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
         printf("Z %d \n", cpu->zero_flag);
