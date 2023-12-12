@@ -247,7 +247,7 @@ typedef struct APEX_CPU
     int memory_address;
     int has_afu_data;
     int has_bfu_data;
-    int has_intfu_data;
+    int has_intfu_data[24];
     int has_mau_data;
     int has_mulfu_data;
     int afu_entry;
@@ -282,7 +282,7 @@ typedef struct APEX_CPU
     LSQEntry entry;
     AFU_Data_Forward afu_data;
     BFU_Data_Forward bfu_data;
-    IntFu_Data_Forward intfu_data;
+    IntFu_Data_Forward intfu_data[24];
     MulFu_Data_Forward mulfu_data;
     MAU_Data_Forward mau_data;
     
@@ -305,7 +305,6 @@ void dispatch_to_BQ(APEX_CPU *cpu, BQ_Entry *bq_entry);
 void dispatch_to_IQ(APEX_CPU *cpu, IQ_Entries *iq_entry);
 int is_branch_instruction(int opcode);
 int check_issue_ready(CPU_Stage stage);
-void APEX_issue_queue(APEX_CPU *cpu);
 void APEX_branch_queue(APEX_CPU *cpu);
 int check_wakeup_condition_issue(APEX_CPU *cpu, IQ_Entries *iq_entry);
 #endif
