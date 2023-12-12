@@ -23,7 +23,6 @@ get_code_memory_index_from_pc(const int pc)
     return (pc - 4000) / 4;
 }
 
-//mb_LSQ
 
 static void
 print_instruction(const CPU_Stage *stage)
@@ -790,6 +789,7 @@ static void rename_rs1(APEX_CPU *cpu) {
         rs1_flag = 1;
         cpu->decode.ps1 = cpu->physical_queue[i];
         cpu->physical_register[cpu->decode.ps1].allocated = 1;
+        cpu->VCount[cpu->decode.rs1] += 1;
         if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->decode.ps1) {
             cpu->physical_register[cpu->decode.ps1].data = cpu->afu_data.updated_src_data;
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
@@ -826,6 +826,7 @@ static void rename_rs1(APEX_CPU *cpu) {
 static void rename_rs2(APEX_CPU *cpu) {
     int length = cpu->physical_queue_length;
     int rs2_flag = 0;
+    cpu->VCount[cpu->decode.rs2] += 1;
     for(int i = 0; i < length; i++) {
       if (cpu->rename_table[cpu->physical_queue[i]] == cpu->decode.rs2) {
         rs2_flag = 1;
@@ -1666,6 +1667,9 @@ APEX_decode(APEX_CPU *cpu)
                 rename_rd(cpu);
                 rename_rs1(cpu);
                 rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1721,6 +1725,9 @@ APEX_decode(APEX_CPU *cpu)
             {
                 rename_rs1(cpu);
                 rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1735,6 +1742,9 @@ APEX_decode(APEX_CPU *cpu)
             {
                 rename_rs1(cpu);
                 rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
