@@ -14,6 +14,11 @@ I've initialized two functions called 'LSQEntryStore()' and 'LSQEntryLoad()' for
 
 Post that, the the values are transfered from the dispatch stage to the LSQ stage. In the LSQ stage, the validity of the memory addess has been checked as the 'conditon 1' and 'ROB entry index' is compared with the 'LSQ entry index' to execute memory operations in the MAU stage.
 
+Reorder Buffer:
+I've implemented reorder buffer to maintain the instruction order. Allocation and Deallocation of physical registers implementing Deallocation logic. ROB is a circular FIFO queue implementation. An ROB entry is created accordingly and it has been co-ordinated with LSQ implementation to execute memory operations for LOAD/STORE instructions. The commit logic is integrated with the ROB logic.
+
+The head and tail of ROB are used for the comparison operation with LSQ. The instruction is pitched to ROB, LSQ and IQ stages.
+
 Shruti Dhande:
 I've successfully incorporated separate Branch (BQ) and Instruction (IQ) Queues in the proposed processor architecture, preferring the earliest dispatched instruction for simultaneous readiness. For conditional branches based on BTB predictions, speculative execution is permitted, including checkpointing for recovery in the event of a misprediction.
 

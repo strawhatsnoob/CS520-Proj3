@@ -1217,6 +1217,7 @@ static void LSQ_enqueue(APEX_CPU *cpu) {
 
     cpu->lsq.rear = (cpu->lsq.rear + 1) % 16; // Circular increment
     cpu->lsq.entries[cpu->lsq.rear] = cpu->entry;
+    cpu->lsq.numberOfEntries = cpu->lsq.numberOfEntries+1;
 
 }
 
@@ -1227,11 +1228,6 @@ static LSQEntry LSQ_dequeue(APEX_CPU *cpu){
     cpu->lsq.numberOfEntries--;
 
     return entry1;
-}
-
-static LSQEntry getEntryAtIndex(APEX_CPU *cpu, int index) {
-
-    return cpu->lsq.entries[(cpu->lsq.front + index) % 16];
 }
 
 
@@ -1644,43 +1640,39 @@ static void
 APEX_LSQ(APEX_CPU *cpu)
 {
     if(cpu->lsqStage.has_insn && cpu->lsq.numberOfEntries > 0){
-        LSQ_enqueue(cpu);
 
     //CHECKING CONDITION 1
 
-    if(cpu->entry.validBitMemoryAddress == 0){
         //checking contition 2
 
             if(cpu->memory_address != -1){
                 cpu->entry.memoryAddress = cpu->memory_address;
                 cpu->memory_address = -1;
+                cpu->entry.validBitMemoryAddress = 0;
             }
 
             
 
-            if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].lsq_index == cpu->lsq.entries[cpu->lsq.front].entryIndex){
+            if(cpu->entry.validBitMemoryAddress == 0){
+                    if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].lsq_index == cpu->lsq.entries[cpu->lsq.front].entryIndex){
 
-                if(isLSQEmpty(cpu)){
-                    return;
+                        if(isLSQEmpty(cpu)){
+                            return;
+                        }
+
+                        cpu->lsqStage.dqLsq = LSQ_dequeue(cpu);
+                        cpu->mau = cpu->lsqStage;
+                        cpu->lsqStage.has_insn = FALSE;
+
+                        if (ENABLE_DEBUG_MESSAGES)
+                        {
+                            display_stage_content("LSQ/RF", &cpu->lsqStage);
+                        }
+
                 }
-
-                cpu->lsqStage.dqLsq = LSQ_dequeue(cpu);
-                cpu->mau = cpu->lsqStage;
-                cpu->lsqStage.has_insn = FALSE;
-
-                if (ENABLE_DEBUG_MESSAGES)
-                {
-                    display_stage_content("LSQ/RF", &cpu->lsqStage);
-                }
-                
-
             }
         
-
-        
         }
-    }
-    
 }
 
 
@@ -1736,11 +1728,18 @@ APEX_decode(APEX_CPU *cpu)
             }
 
             case OPCODE_LOAD:
+            {
+                rename_rd(cpu);
+                rename_rs1(cpu);
+                cpu->entry.opcode = cpu->decode.opcode;
+
+            }
             case OPCODE_LOADP:
             {
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 rename_rd(cpu);
                 rename_rs1(cpu);
+                cpu->entry.opcode = cpu->decode.opcode;
 
                 // update_rs1_with_forwarded_value(cpu);
                 // cpu->is_data_forwarded = 0;
@@ -1764,6 +1763,15 @@ APEX_decode(APEX_CPU *cpu)
             }
 
             case OPCODE_STORE:
+            {
+                rename_rs1(cpu);
+                rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
+                cpu->entry.opcode = cpu->decode.opcode;
+                break;
+            }
             case OPCODE_STOREP:
             {
                 rename_rs1(cpu);
@@ -1771,6 +1779,7 @@ APEX_decode(APEX_CPU *cpu)
                 if(cpu->decode.ps1 == cpu->decode.ps2){
                     cpu->VCount[cpu->decode.ps2] -= 1;
                 }
+                cpu->entry.opcode = cpu->decode.opcode;
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -2308,6 +2317,7 @@ static void APEX_BFU(APEX_CPU *cpu) {
             }
 
         }
+        cpu->rob = cpu->bfu;
         cpu->bfu.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
@@ -2363,7 +2373,7 @@ static void APEX_MulFu(APEX_CPU *cpu) {
 static void APEX_MAU(APEX_CPU *cpu) {
     cpu->has_mau_data = FALSE;
     if(cpu->mau.has_insn) {
-    int opcode = 0;
+    int opcode = cpu->lsq.entries[cpu->lsq.rear].opcode;
     switch(opcode) {
         case OPCODE_LOAD:
         case OPCODE_LOADP:
@@ -2388,6 +2398,7 @@ static void APEX_MAU(APEX_CPU *cpu) {
             break;
         }
     }
+    cpu->rob = cpu->mau;
     cpu->mau.has_insn = FALSE;
 
     if (ENABLE_DEBUG_MESSAGES)
