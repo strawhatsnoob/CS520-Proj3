@@ -246,7 +246,7 @@ typedef struct APEX_CPU
     int prev_dest;
     int memory_address;
     int has_afu_data;
-    int has_bfu_data;
+    int has_bfu_data[16];
     int has_intfu_data[24];
     int has_mau_data;
     int has_mulfu_data;
