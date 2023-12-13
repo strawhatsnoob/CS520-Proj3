@@ -23,7 +23,6 @@ get_code_memory_index_from_pc(const int pc)
     return (pc - 4000) / 4;
 }
 
-//mb_LSQ
 
 static void
 print_instruction(const CPU_Stage *stage)
@@ -631,17 +630,33 @@ static void APEX_issue_queue(APEX_CPU *cpu) {
                     switch(cpu->iq_entries[i].opcode) {
                         case OPCODE_LOAD:
                         case OPCODE_LOADP:
+                        {
+                            cpu->iq_stage.iq_afu = cpu->iq_entries[i];
+                            cpu->afu = cpu->iq_stage;
+                            cpu->VCount[cpu->iq_entries[i].src1_tag] -= 1;
+                            break;
+                        }
                         case OPCODE_STORE:
                         case OPCODE_STOREP:
                         {
                             cpu->iq_stage.iq_afu = cpu->iq_entries[i];
                             cpu->afu = cpu->iq_stage;
+                            if(cpu->iq_entries[i].src1_tag == cpu->iq_entries[i].src2_tag){
+                                cpu->VCount[cpu->iq_entries[i].src2_tag] -= 1;
+                            }
+                            else{
+                                cpu->VCount[cpu->iq_entries[i].src2_tag] -= 1;
+                                cpu->VCount[cpu->iq_entries[i].src1_tag] -= 1;
+                            }
                             break;
                         }
                         case OPCODE_MUL:
                         {
                             cpu->iq_stage.iq_mulfu = cpu->iq_entries[i];
                             cpu->mulfu = cpu->iq_stage;
+                            if(cpu->iq_entries[i].src1_tag == cpu->iq_entries[i].src2_tag){
+                                cpu->VCount[cpu->iq_entries[i].src2_tag] -= 1;
+                            }
                             break;
                         }
                         case OPCODE_BP:
@@ -651,11 +666,35 @@ static void APEX_issue_queue(APEX_CPU *cpu) {
                         case OPCODE_JUMP:
                         case OPCODE_JALR:
                             break;
+
+                        case OPCODE_ADDL:
+                        case OPCODE_SUBL:
+                        {
+                            cpu->iq_entries[i].allocated = 0;
+                            cpu->iq_stage.iq_intfu = cpu->iq_entries[i];
+                            cpu->intfu = cpu->iq_stage;
+                            cpu->VCount[cpu->iq_entries[i].src1_tag] -= 1;
+                        }
+                        case OPCODE_CML:
+                        {
+                            cpu->iq_entries[i].allocated = 0;
+                            cpu->iq_stage.iq_intfu = cpu->iq_entries[i];
+                            cpu->intfu = cpu->iq_stage;
+                            cpu->VCount[cpu->iq_entries[i].src1_tag] -= 1; 
+                        }
+
                         default:
                         {
                             cpu->iq_entries[i].allocated = 0;
                             cpu->iq_stage.iq_intfu = cpu->iq_entries[i];
                             cpu->intfu = cpu->iq_stage;
+                            if(cpu->iq_entries[i].src1_tag == cpu->iq_entries[i].src2_tag){
+                                cpu->VCount[cpu->iq_entries[i].src2_tag] -= 1;
+                            }
+                            else{
+                                cpu->VCount[cpu->iq_entries[i].src2_tag] -= 1;
+                                cpu->VCount[cpu->iq_entries[i].src1_tag] -= 1;
+                            }
                             break;
                         }
                     }
@@ -766,6 +805,9 @@ ROB_Entries dequeue(APEX_CPU *cpu) {
 
 static void rename_rd(APEX_CPU *cpu) {
     int length = cpu->physical_queue_length;
+    if(cpu->isRenamed[cpu->decode.rd] == 0){
+        cpu->isRenamed[cpu->decode.rd] = 1;
+    }
     for (int i = 0; i < length; i++) {
         if(cpu->rename_table[cpu->physical_queue[i]] == cpu->decode.rd) {
             cpu->prev_dest = cpu->physical_queue[i];
@@ -790,6 +832,7 @@ static void rename_rs1(APEX_CPU *cpu) {
         rs1_flag = 1;
         cpu->decode.ps1 = cpu->physical_queue[i];
         cpu->physical_register[cpu->decode.ps1].allocated = 1;
+        cpu->VCount[cpu->decode.rs1] += 1;
         if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->decode.ps1) {
             cpu->physical_register[cpu->decode.ps1].data = cpu->afu_data.updated_src_data;
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
@@ -826,6 +869,7 @@ static void rename_rs1(APEX_CPU *cpu) {
 static void rename_rs2(APEX_CPU *cpu) {
     int length = cpu->physical_queue_length;
     int rs2_flag = 0;
+    cpu->VCount[cpu->decode.rs2] += 1;
     for(int i = 0; i < length; i++) {
       if (cpu->rename_table[cpu->physical_queue[i]] == cpu->decode.rs2) {
         rs2_flag = 1;
@@ -1092,9 +1136,9 @@ static void do_commit(Register_Rename physical_entry, int dest_address, APEX_CPU
 }
 
 static void APEX_ROB(APEX_CPU *cpu) {
-    if(!cpu->rob.has_insn) {
+    if(cpu->rob.has_insn) {
         for(int i = 0; i < 24; i++) {
-            if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].entry_bit == 1 && cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register) {
+            if(cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].entry_bit == 1 && cpu->rename_table[cpu->physical_queue[i]] == cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_phsyical_register && cpu->VCount[cpu->rename_table[cpu->physical_queue[i]]] == 0) {
                 if(cpu->physical_register[cpu->physical_queue[i]].allocated == 1) {
                     ROB_Entries current_entry = dequeue(cpu);
                     do_commit(cpu->physical_register[cpu->physical_queue[i]], cpu->ROB_queue.rob_entries[cpu->ROB_queue.ROB_head].dest_arch_register ,
@@ -1666,6 +1710,9 @@ APEX_decode(APEX_CPU *cpu)
                 rename_rd(cpu);
                 rename_rs1(cpu);
                 rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1721,6 +1768,9 @@ APEX_decode(APEX_CPU *cpu)
             {
                 rename_rs1(cpu);
                 rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
@@ -1735,6 +1785,9 @@ APEX_decode(APEX_CPU *cpu)
             {
                 rename_rs1(cpu);
                 rename_rs2(cpu);
+                if(cpu->decode.ps1 == cpu->decode.ps2){
+                    cpu->VCount[cpu->decode.ps2] -= 1;
+                }
                 // cpu->decode.rs1_value = cpu->regs[cpu->decode.rs1];
                 // cpu->decode.rs2_value = cpu->regs[cpu->decode.rs2];
 
