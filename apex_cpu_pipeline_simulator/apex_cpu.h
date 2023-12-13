@@ -251,6 +251,8 @@ typedef struct APEX_CPU
     int has_mau_data;
     int has_mulfu_data;
     int afu_entry;
+    int VCount[24];
+    int isRenamed[24];
 
     /* Pipeline stages */
     CPU_Stage fetch;
