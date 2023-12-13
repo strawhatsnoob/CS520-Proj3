@@ -40,6 +40,7 @@ typedef struct IQ_Entries {
     int is_used;
     int dispatch_time;
     int elapsed_cycles_at_dispatch;
+    int is_issued;
 }IQ_Entries;
 
 typedef struct BQ_Entry {
@@ -253,6 +254,8 @@ typedef struct APEX_CPU
     int afu_entry;
     int VCount[24];
     int isRenamed[24];
+    int iq_dest_index[24];
+    int forwarded;
 
     /* Pipeline stages */
     CPU_Stage fetch;
