@@ -120,6 +120,7 @@ typedef struct LSQEntry{
     int srcDataValidBit;
     int srcTag;  
     int entryIndex;
+    int opcode;
 } LSQEntry;
 
 /* Model of CPU stage latch */
