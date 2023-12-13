@@ -249,7 +249,7 @@ typedef struct APEX_CPU
     int has_bfu_data;
     int has_intfu_data[24];
     int has_mau_data;
-    int has_mulfu_data;
+    int has_mulfu_data[24];
     int afu_entry;
 
     /* Pipeline stages */
@@ -283,7 +283,7 @@ typedef struct APEX_CPU
     AFU_Data_Forward afu_data;
     BFU_Data_Forward bfu_data;
     IntFu_Data_Forward intfu_data[24];
-    MulFu_Data_Forward mulfu_data;
+    MulFu_Data_Forward mulfu_data[24];
     MAU_Data_Forward mau_data;
     
     BQ_Entry bq[16];

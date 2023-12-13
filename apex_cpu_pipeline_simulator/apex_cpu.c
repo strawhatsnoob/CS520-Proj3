@@ -389,13 +389,14 @@ APEX_fetch(APEX_CPU *cpu)
 }
 
 static void update_src1_with_forwarded_data(APEX_CPU *cpu, int i) {
-    if (!cpu->has_afu_data &&
-        cpu->afu_data.physical_address == cpu->dispatch.ps1) {
-        cpu->iq_entries[i].src1_valid_bit = 1;
-        cpu->iq_entries[i].src1_value = cpu->afu_data.updated_src_data;
-    }
-    if (!cpu->has_mulfu_data &&
-        cpu->mulfu_data.physical_address == cpu->dispatch.ps1) {
+    // if (!cpu->has_afu_data &&
+    //     cpu->afu_data.physical_address == cpu->dispatch.ps1) {
+    //     cpu->iq_entries[i].src1_valid_bit = 1;
+    //     cpu->iq_entries[i].src1_value = cpu->afu_data.updated_src_data;
+    // }
+    if (!cpu->has_mulfu_data[cpu->dispatch.ps1] &&
+        cpu->mulfu_data[cpu->dispatch.ps1].physical_address == cpu->dispatch.ps1 
+        && cpu->mulfu_data[cpu->dispatch.ps1].is_allocated) {
         cpu->iq_entries[i].src1_valid_bit = 1;
         cpu->iq_entries[i].src1_value = cpu->afu_data.dest_data;
     }
@@ -408,13 +409,14 @@ static void update_src1_with_forwarded_data(APEX_CPU *cpu, int i) {
 }
 
 static void update_src2_with_forwarded_data(APEX_CPU *cpu, int i) {
-    if (!cpu->has_afu_data &&
-        cpu->afu_data.physical_address == cpu->dispatch.ps2) {
-        cpu->iq_entries[i].src2_valid_bit = 1;
-        cpu->iq_entries[i].src2_value = cpu->afu_data.updated_src_data;
-    }
-    if (!cpu->has_mulfu_data &&
-        cpu->mulfu_data.physical_address == cpu->dispatch.ps2) {
+    // if (!cpu->has_afu_data &&
+    //     cpu->afu_data.physical_address == cpu->dispatch.ps2) {
+    //     cpu->iq_entries[i].src2_valid_bit = 1;
+    //     cpu->iq_entries[i].src2_value = cpu->afu_data.updated_src_data;
+    // }
+    if (!cpu->has_mulfu_data[cpu->dispatch.ps2] &&
+        cpu->mulfu_data[cpu->dispatch.ps2].physical_address == cpu->dispatch.ps2
+        && cpu->mulfu_data[cpu->dispatch.ps2].is_allocated) {
         cpu->iq_entries[i].src2_valid_bit = 1;
         cpu->iq_entries[i].src2_value = cpu->afu_data.dest_data;
     }
@@ -541,6 +543,22 @@ int check_wakeup_condition_branch(APEX_CPU *cpu, BQ_Entry *bq_entry) {
         return 0; // Instruction is not ready to execute
 }
 
+static void reinitialize_iq(APEX_CPU *cpu, int i) {
+    cpu->iq_entries[i].allocated = 0;
+    cpu->iq_entries[i].dest = 0;
+    cpu->iq_entries[i].dispatch_time = 0;
+    cpu->iq_entries[i].elapsed_cycles_at_dispatch = 0;
+    cpu->iq_entries[i].is_used = 0;
+    cpu->iq_entries[i].literal = 0;
+    cpu->iq_entries[i].opcode = 0;
+    cpu->iq_entries[i].pc_address = 0;
+    cpu->iq_entries[i].src1_tag = 0;
+    cpu->iq_entries[i].src1_valid_bit = 0;
+    cpu->iq_entries[i].src1_value = 0;
+    cpu->iq_entries[i].src2_valid_bit = 0;
+    cpu->iq_entries[i].src2_value = 0;
+    cpu->iq_entries[i].src2_tag = 0;
+}
 
 static void APEX_issue_queue(APEX_CPU *cpu) {
     if(cpu->iq_stage.has_insn) {
@@ -561,61 +579,60 @@ static void APEX_issue_queue(APEX_CPU *cpu) {
     //     }
     // }  
     // Check if there is forwarded data
-    // if (cpu->data_forward[0].flag || cpu->data_forward[1].flag) {
         for (int i = 0; i < 24; i++) {
             if (cpu->iq_entries[i].allocated) {
-                // if (cpu->data_forward[0].flag && cpu->iq_entries[i].src1_tag == cpu->data_forward[0].physical_address) {
-                //     cpu->iq_entries[i].src1_value = cpu->data_forward[0].data;
-                //     cpu->iq_entries[i].src1_valid_bit = TRUE;
+                // if(!cpu->has_mulfu_data[cpu->iq_stage.ps1] && cpu->mulfu_data[cpu->iq_stage.ps1].physical_address == cpu->iq_entries[i].src1_tag
+                // && cpu->mulfu_data[cpu->iq_stage.ps1].is_allocated) {
+                //     cpu->iq_entries[i].src1_valid_bit = 1;
+                //     cpu->iq_entries[i].src1_value = cpu->mulfu_data[cpu->iq_stage.ps1].dest_data;
+                // }
+                // if(!cpu->has_intfu_data[cpu->iq_stage.ps1] && cpu->intfu_data[cpu->iq_stage.ps1].physical_address == cpu->iq_entries[i].src1_tag
+                //  && cpu->intfu_data[cpu->iq_stage.ps1].is_allocated) {
+                //     cpu->iq_entries[i].src1_valid_bit = 1;
+                //     cpu->iq_entries[i].src1_value = cpu->intfu_data[cpu->iq_stage.ps1].dest_data;
                 // }
 
-                // if (cpu->data_forward[1].flag && cpu->iq_entries[i].src2_tag == cpu->data_forward[1].physical_address) {
-                //     cpu->iq_entries[i].src2_value = cpu->data_forward[1].data;
-                //     cpu->iq_entries[i].src2_valid_bit = TRUE;
+                if(!cpu->has_mulfu_data[i] && cpu->mulfu_data[i].physical_address == cpu->iq_entries[i].src1_tag
+                && cpu->mulfu_data[i].is_allocated) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->mulfu_data[i].dest_data;
+                }
+                if(!cpu->has_intfu_data[i] && cpu->intfu_data[i].physical_address == cpu->iq_entries[i].src1_tag
+                 && cpu->intfu_data[i].is_allocated) {
+                    cpu->iq_entries[i].src1_valid_bit = 1;
+                    cpu->iq_entries[i].src1_value = cpu->intfu_data[i].dest_data;
+                }
+
+                // if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->iq_entries[i].src2_tag) {
+                //     // cpu->physical_register[cpu->iq_stage.ps2].data = cpu->afu_data.updated_src_data;
+                //     // cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
+                //     cpu->iq_entries[i].src2_valid_bit = 1;
+                //     cpu->iq_entries[i].src2_value = cpu->afu_data.dest_data;
+                //     // cpu->physical_register[cpu->decode.ps1].allocated = 1;
                 // }
-
-                // Add the forwarding logic for src1
-                if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->iq_stage.ps1) {
-                    cpu->physical_register[cpu->iq_stage.ps1].data = cpu->afu_data.updated_src_data;
-                    cpu->physical_register[cpu->iq_stage.ps1].valid_bit = 1;
-                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                // if(!cpu->has_mulfu_data[cpu->iq_stage.ps2] && cpu->mulfu_data[cpu->iq_stage.ps2].physical_address == cpu->iq_entries[i].src2_tag
+                // && cpu->mulfu_data[cpu->iq_stage.ps2].is_allocated) {
+                //     cpu->iq_entries[i].src2_valid_bit = 1;
+                //     cpu->iq_entries[i].src2_value = cpu->mulfu_data[cpu->iq_stage.ps2].dest_data;
+                // }
+                // if(!cpu->has_intfu_data[cpu->iq_stage.ps2] && cpu->intfu_data[cpu->iq_stage.ps2].physical_address == cpu->iq_entries[i].src2_tag
+                // && cpu->intfu_data[cpu->iq_stage.ps2].is_allocated) {
+                //     cpu->iq_entries[i].src2_valid_bit = 1;
+                //     cpu->iq_entries[i].src2_value = cpu->intfu_data[cpu->iq_stage.ps2].dest_data;
+                // }
+                if(!cpu->has_mulfu_data[i] && cpu->mulfu_data[i].physical_address == cpu->iq_entries[i].src2_tag
+                && cpu->mulfu_data[i].is_allocated) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->mulfu_data[i].dest_data;
                 }
-                if(!cpu->has_mulfu_data && cpu->mulfu_data.physical_address == cpu->iq_stage.ps1) {
-                    cpu->physical_register[cpu->iq_stage.ps1].data = cpu->mulfu_data.dest_data;
-                    cpu->physical_register[cpu->iq_stage.ps1].valid_bit = 1;
-                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
-                }
-                if(!cpu->has_intfu_data[cpu->iq_stage.ps1] && cpu->intfu_data[cpu->iq_stage.ps1].physical_address == cpu->iq_stage.ps1
-                 && cpu->intfu_data[cpu->iq_stage.ps1].is_allocated) {
-                    cpu->physical_register[cpu->iq_stage.ps1].data = cpu->intfu_data[cpu->iq_stage.ps1].dest_data;
-                    cpu->physical_register[cpu->iq_stage.ps1].valid_bit = 1;
-                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
-                }
-
-                if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->iq_stage.ps2) {
-                    cpu->physical_register[cpu->iq_stage.ps2].data = cpu->afu_data.updated_src_data;
-                    cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
-                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
-                }
-                if(!cpu->has_mulfu_data && cpu->mulfu_data.physical_address == cpu->iq_stage.ps2) {
-                    cpu->physical_register[cpu->iq_stage.ps2].data = cpu->mulfu_data.dest_data;
-                    cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
-                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
-                }
-                if(!cpu->has_intfu_data[cpu->iq_stage.ps2] && cpu->intfu_data[cpu->iq_stage.ps2].physical_address == cpu->iq_stage.ps2
-                && cpu->intfu_data[cpu->iq_stage.ps2].is_allocated) {
-                    cpu->physical_register[cpu->iq_stage.ps2].data = cpu->intfu_data[cpu->iq_stage.ps2].dest_data;
-                    cpu->physical_register[cpu->iq_stage.ps2].valid_bit = 1;
-                    // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+                if(!cpu->has_intfu_data[i] && cpu->intfu_data[i].physical_address == cpu->iq_entries[i].src2_tag
+                && cpu->intfu_data[i].is_allocated) {
+                    cpu->iq_entries[i].src2_valid_bit = 1;
+                    cpu->iq_entries[i].src2_value = cpu->intfu_data[i].dest_data;
                 }
             }
-        // }
     }
 
-
-            // Clear forwarding information
-            // cpu->data_forward[0].flag = 0;
-            // cpu->data_forward[1].flag = 0;
 
         if (cpu->dispatch.is_used && cpu->dispatch.is_bq) {
         cpu->dispatch.simulate_counter = 1;
@@ -640,8 +657,10 @@ static void APEX_issue_queue(APEX_CPU *cpu) {
                         }
                         case OPCODE_MUL:
                         {
+                            // cpu->iq_entries[i].allocated = 0;
                             cpu->iq_stage.iq_mulfu = cpu->iq_entries[i];
                             cpu->mulfu = cpu->iq_stage;
+                            reinitialize_iq(cpu, i);
                             break;
                         }
                         case OPCODE_BP:
@@ -653,9 +672,11 @@ static void APEX_issue_queue(APEX_CPU *cpu) {
                             break;
                         default:
                         {
+                            // reinitialize_iq(cpu, i);
                             cpu->iq_entries[i].allocated = 0;
                             cpu->iq_stage.iq_intfu = cpu->iq_entries[i];
                             cpu->intfu = cpu->iq_stage;
+                            reinitialize_iq(cpu, i);
                             break;
                         }
                     }
@@ -795,8 +816,8 @@ static void rename_rs1(APEX_CPU *cpu) {
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
-        if(!cpu->has_mulfu_data && cpu->mulfu_data.physical_address == cpu->decode.ps1) {
-            cpu->physical_register[cpu->decode.ps1].data = cpu->mulfu_data.dest_data;
+        if(!cpu->has_mulfu_data[cpu->decode.ps1] && cpu->mulfu_data[cpu->decode.ps1].physical_address == cpu->decode.ps1) {
+            cpu->physical_register[cpu->decode.ps1].data = cpu->mulfu_data[cpu->decode.ps1].dest_data;
             cpu->physical_register[cpu->decode.ps1].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
@@ -831,13 +852,14 @@ static void rename_rs2(APEX_CPU *cpu) {
         rs2_flag = 1;
         cpu->decode.ps2 = cpu->physical_queue[i];
         cpu->physical_register[cpu->decode.ps2].allocated = 1;
-        if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->decode.ps2) {
-            cpu->physical_register[cpu->decode.ps2].data = cpu->afu_data.updated_src_data;
-            cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
-            // cpu->physical_register[cpu->decode.ps1].allocated = 1;
-        }
-        if(!cpu->has_mulfu_data && cpu->mulfu_data.physical_address == cpu->decode.ps2) {
-            cpu->physical_register[cpu->decode.ps2].data = cpu->mulfu_data.dest_data;
+        // if(!cpu->has_afu_data && cpu->afu_data.physical_address == cpu->decode.ps2) {
+        //     cpu->physical_register[cpu->decode.ps2].data = cpu->afu_data.updated_src_data;
+        //     cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
+        //     // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+        // }
+        if(!cpu->has_mulfu_data[cpu->decode.ps2] && cpu->mulfu_data[cpu->decode.ps2].physical_address == cpu->decode.ps2
+        && cpu->mulfu_data[cpu->decode.ps2].is_allocated) {
+            cpu->physical_register[cpu->decode.ps2].data = cpu->mulfu_data[cpu->decode.ps2].dest_data;
             cpu->physical_register[cpu->decode.ps2].valid_bit = 1;
             // cpu->physical_register[cpu->decode.ps1].allocated = 1;
         }
@@ -1388,7 +1410,9 @@ APEX_dispatch(APEX_CPU *cpu) {
             }
 
             case OPCODE_NOP:
+            case OPCODE_HALT:
             {
+                iq_entry_pd(cpu);
                 break;
             }
 
@@ -2266,29 +2290,30 @@ static void APEX_BFU(APEX_CPU *cpu) {
 
 
 static void APEX_MulFu(APEX_CPU *cpu) {
-    cpu->has_mulfu_data = FALSE;
+    cpu->has_mulfu_data[cpu->mulfu.iq_mulfu.dest] = FALSE;
     if(cpu->mulfu.has_insn) {
-        int opcode = 0;
-    switch(cpu->mulfu.has_insn) {
+        int opcode = cpu->mulfu.iq_mulfu.opcode;
+    switch(opcode) {
         case OPCODE_MUL:
         {
-            cpu->mulfu.result_buffer = cpu->mulfu.iq_entry.src1_value * cpu->mulfu.iq_entry.src2_value;
-            cpu->has_mulfu_data = TRUE;
-            cpu->mulfu_data.dest_data = cpu->mulfu.result_buffer;
-            cpu->mulfu_data.physical_address = cpu->mulfu.iq_entry.dest;
+            cpu->mulfu.result_buffer = cpu->mulfu.iq_mulfu.src1_value * cpu->mulfu.iq_mulfu.src2_value;
+            cpu->has_mulfu_data[cpu->mulfu.iq_mulfu.dest] = TRUE;
+            cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].is_allocated = TRUE;
+            cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].dest_data = cpu->mulfu.result_buffer;
+            cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].physical_address = cpu->mulfu.iq_mulfu.dest;
             if (cpu->mulfu.result_buffer == 0) {
                 cpu->zero_flag = TRUE;
-                cpu->mulfu_data.zero_flag = cpu->zero_flag;
+                cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].zero_flag = cpu->zero_flag;
             } else {
                 cpu->zero_flag = FALSE;
-                cpu->mulfu_data.zero_flag = cpu->zero_flag;
+                cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].zero_flag = cpu->zero_flag;
             }
             if(cpu->mulfu.result_buffer > 0) {
                 cpu->positive_flag = TRUE;
-                cpu->mulfu_data.positive_flag = cpu->positive_flag;
+                cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].positive_flag = cpu->positive_flag;
             } else {
                 cpu->positive_flag = FALSE;
-                cpu->mulfu_data.positive_flag = cpu->positive_flag;
+                cpu->mulfu_data[cpu->mulfu.iq_mulfu.dest].positive_flag = cpu->positive_flag;
             }
                 // = cpu->mulfu.rs1_value * cpu->mulfu.rs2_value;
             /* Set the zero flag based on the result buffer */
@@ -2904,6 +2929,7 @@ APEX_cpu_run(APEX_CPU *cpu)
 
         for(int i = 0; i < 24; i++) {
             cpu->has_intfu_data[i] = FALSE;
+            cpu->has_mulfu_data[i] = FALSE;
         }
         print_reg_file(cpu);
         printf("P %d \n", cpu->positive_flag);
