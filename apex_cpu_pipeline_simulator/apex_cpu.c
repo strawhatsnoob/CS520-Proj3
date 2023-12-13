@@ -2317,6 +2317,7 @@ static void APEX_BFU(APEX_CPU *cpu) {
             }
 
         }
+        cpu->rob = cpu->bfu;
         cpu->bfu.has_insn = FALSE;
 
         if (ENABLE_DEBUG_MESSAGES)
@@ -2397,6 +2398,7 @@ static void APEX_MAU(APEX_CPU *cpu) {
             break;
         }
     }
+    cpu->rob = cpu->mau;
     cpu->mau.has_insn = FALSE;
 
     if (ENABLE_DEBUG_MESSAGES)
