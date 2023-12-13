@@ -736,6 +736,11 @@ void APEX_branch_queue(APEX_CPU *cpu) {
         cpu->physical_register[cpu->bq_stage.ps1].data = cpu->bfu_data.updated_src_data;
         cpu->physical_register[cpu->bq_stage.ps1].valid_bit = 1;
     }
+    if(!cpu->has_bfu_data && cpu->bfu_data.physical_address == cpu->bq_stage.ps2) {
+        cpu->physical_register[cpu->bq_stage.ps2].data = cpu->bfu_data.updated_src_data;
+        cpu->physical_register[cpu->bq_stage.ps2].valid_bit = 1;
+        // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+    }
 
     for (int i = 0; i < 24; i++) {
         if (cpu->bq[i].is_used) {
