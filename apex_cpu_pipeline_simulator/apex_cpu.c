@@ -803,6 +803,22 @@ void APEX_branch_queue(APEX_CPU *cpu) {
                 }
         }
     }
+
+    for (int i = 0; i < 24; i++) {
+        if (cpu->bq[i].allocated) {
+            // Forwarding logic for BQ
+            if (!cpu->has_bfu_data && cpu->bfu_data.physical_address == cpu->bq_stage.ps1) {
+                cpu->physical_register[cpu->bq_stage.ps1].data = cpu->bfu_data.updated_src_data;
+                cpu->physical_register[cpu->bq_stage.ps1].valid_bit = 1;
+            }
+            if(!cpu->has_bfu_data && cpu->bfu_data.physical_address == cpu->bq_stage.ps2) {
+                cpu->physical_register[cpu->bq_stage.ps2].data = cpu->bfu_data.updated_src_data;
+                cpu->physical_register[cpu->bq_stage.ps2].valid_bit = 1;
+                // cpu->physical_register[cpu->decode.ps1].allocated = 1;
+            }
+        }
+    }
+
     for (int i = 0; i < 24; i++) {
         if (cpu->bq[i].is_used) {
             // Check if the wakeup condition is met
@@ -2191,6 +2207,9 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->has_bfu_data[cpu->bfu.bq_bfu.dest] = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].is_allocated = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].physical_address = cpu->bfu.bq_bfu.dest;
                 break;
             }
 
@@ -2238,6 +2257,9 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->has_bfu_data[cpu->bfu.bq_bfu.dest] = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].is_allocated = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].physical_address = cpu->bfu.bq_bfu.dest;
                 break;
             }
 
@@ -2281,6 +2303,9 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->has_bfu_data[cpu->bfu.bq_bfu.dest] = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].is_allocated = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].physical_address = cpu->bfu.bq_bfu.dest;
                 break;
             }
 
@@ -2324,6 +2349,9 @@ static void APEX_BFU(APEX_CPU *cpu) {
                     cpu->fetch_from_next_cycle = TRUE;
                     cpu->fetch.has_insn = TRUE;
                 }
+                cpu->has_bfu_data[cpu->bfu.bq_bfu.dest] = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].is_allocated = TRUE;
+                //cpu->bfu_data[cpu->bfu.bq_bfu.dest].physical_address = cpu->bfu.bq_bfu.dest;
                 break;
             }
 
@@ -2333,6 +2361,18 @@ static void APEX_BFU(APEX_CPU *cpu) {
                 cpu->bfu.result_buffer = cpu->memory_address;
                 // cpu->pc = cpu->regs[cpu->execute.rs1] + cpu->execute.imm;
                 cpu->pc = cpu->memory_address;
+
+                // Forwarding
+                //cpu->bfu_data_forward.physical_address = cpu->bfu_data.physical_address;
+                //cpu->bfu_data_forward.data = cpu->bfu.result_buffer;
+                //cpu->bfu_data_forward.is_allocated = TRUE;
+
+                //cpu->bfu.result_buffer = cpu->bfu.bq_bfu.src1_value | cpu->bfu.bq_bfu.src2_value;
+                /* cpu->has_bfu_data[cpu->bfu.bq_bfu.dest] = TRUE;
+                cpu->bfu_data[cpu->bfu.bq_bfu.dest].physical_address = cpu->bfu.bq_bfu.dest;
+                cpu->bfu_data[cpu->bfu.bq_bfu.dest].dest_data = cpu->bfu.result_buffer;
+                cpu->bfu_data[cpu->bfu.bq_bfu.dest].is_allocated = TRUE;*/
+
 
                 /* Since we are using reverse callbacks for pipeline stages, 
                 * this will prevent the new instruction from being fetched in the current cycle*/
@@ -2352,6 +2392,14 @@ static void APEX_BFU(APEX_CPU *cpu) {
                 cpu->bfu.result_buffer = cpu->memory_address;
                 cpu->pc = cpu->memory_address;
                 printf("New addres %d\n", cpu->bfu.result_buffer);
+
+                //cpu->bfu.result_buffer = cpu->bfu.bq_bfu.src1_value | cpu->bfu.bq_bfu.src2_value;
+                /*cpu->has_bfu_data[cpu->bfu.bq_bfu.dest] = TRUE;
+                cpu->bfu_data[cpu->bfu.bq_bfu.dest].is_allocated = TRUE;
+                cpu->bfu_data[cpu->bfu.bq_bfu.dest].dest_data = cpu->bfu.result_buffer;
+                cpu->bfu_data[cpu->bfu.bq_bfu.dest].physical_address = cpu->bfu.bq_bfu.dest;*/
+
+
                 /* Since we are using reverse callbacks for pipeline stages, 
                 * this will prevent the new instruction from being fetched in the current cycle*/
                 cpu->fetch_from_next_cycle = TRUE;
